@@ -15,11 +15,13 @@
 #include <dsound.h>
 #pragma comment(lib, "WINMM.LIB")
 #pragma comment(lib, "MSIMG32.LIB")
+#pragma comment( linker, "/subsystem:\"windows\" /entry:\"mainCRTStartup\"" )
 
 using namespace std;
 const int _CN = 25;
-int np, tp, Tp;
-bool supermode, historymode, showmode;
+int np, tp, Tp, MAX_STEPS, MAX_JUMPS, REST_STEPS, STEPS_STATUS = 0, PLAY_BGM, PLAY_SOUND;
+bool supermode, historymode, showmode, AutoUpdate, DO_REC;
+FILE* stream;
 
 struct Chess
 {
@@ -79,9 +81,7 @@ void button(int x, int y, int w, int h, const char* text,COLORREF col,int size=2
 class Record
 {
 	int cnt_step = 0;
-	FILE* stream = nullptr;
 public:
-	static bool DONT_REC;
 	static vector<Pos> Go_Path;
 	int Mix(Pos P);
 	Pos UnMix(int mixed);
@@ -91,10 +91,9 @@ public:
 	void Show(int lsp, int lsc);
 	void Dead(int lsp, int lsc);
 	void RS(int sound);
-	void Step();
+	int Step();
 	void Player_Dead(int who);
 };
-bool Record::DONT_REC = 0;
 class Pub : public Record
 {
 public:
@@ -144,74 +143,70 @@ public:
 	void PRINTNOW();
 	void MC();
 } PLAY4, H4;
+void Setting();
 void HISTORY();
+void PRINT_main();
 
 int main()
 {
-	Pub::Game_Initialize();
 	initgraph(1080, 720, NULL);
 //	initgraph(1080, 720, EX_SHOWCONSOLE);
+	Pub::Game_Initialize();
 	putimage(0, 0, &bk0);
 	button(240, 240, 600, 240, "欢迎来到四国军棋 :)",RGB(491, 491, 100), 50);
 	Sleep(500);
 	cleardevice();
 	int mode = 0, _dx = 170, _sx = 40, _sy = 120, _x = 150, _y = 60;
 	ExMessage msg;
+	PRINT_main();
 	while (1)
 	{
-		BeginBatchDraw();
-		cleardevice();
-		putimage(0, 0, &bk0);
-		button(_sx, 40, 1000, 60, "请选择游玩模式:", RGB(200, 20, 20), 30);
-		button(_sx, _sy, _x, _y, "全暗双人", RGB(20, 200, 20), 25);
-		button(_sx + _dx, _sy, _x, _y, "随机双人", RGB(20, 200, 20), 25);
-		button(_sx + _dx * 2, _sy, _x, _y, "全暗四人", RGB(20, 200, 20), 25);
-		button(_sx + _dx * 3, _sy, _x, _y, "随机四人", RGB(20, 200, 20), 25);
-		button(_sx + _dx * 4, _sy, _x, _y, "加载复盘", RGB(20, 200, 20), 25);
-		button(_sx + _dx * 5, _sy, _x, _y, "退出游戏", RGB(20, 200, 20), 25);
-		LOGFONT f;
-		gettextstyle(&f);
-		f.lfHeight = 18;
-		_tcscpy_s(f.lfFaceName, "黑体");
-		f.lfQuality = ANTIALIASED_QUALITY;
-		settextstyle(&f);
-		outtextxy(30, 670, "version 0.5.1");
-		outtextxy(670, 670, "Copyright 2024 PRXOR. All rights reserved.");
-		EndBatchDraw();
 		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
 		{
 			for (mode = 1; mode <= 6 && !(_sx + _dx * (mode - 1) <= msg.x && msg.x <= _sx + _dx * (mode - 1) + _x && _sy <= msg.y && msg.y <= _sy + _y); mode++) {}
+			if (_sx + 930 <= msg.x && msg.x <= _x + 1000 && 40 <= msg.y && msg.y <= 100) mode = 0;
 			switch (mode)
 			{
+			case 0:
+				button(_sx + 900, 40, 100, 60, "设置", RGB(100, 100, 100), 30);
+				Sleep(200);
+				Setting();
+				PRINT_main();
+				break;
 			case 1:
 				button(_sx, _sy, _x, _y, "全暗双人", RGB(100, 100, 100), 25);
 				supermode = 0, tp = 2, Tp = 2, historymode = 0, showmode = 0;
 				Sleep(200);
 				PLAY2.MC();
+				PRINT_main();
 				break;
 			case 2:
 				button(_sx + _dx, _sy, _x, _y, "随机双人", RGB(100, 100, 100), 25);
 				supermode = 1, tp = 2, Tp = 2, historymode = 0, showmode = 0;
 				Sleep(200);
 				PLAY2.MC();
+				PRINT_main();
 				break;
 			case 3:
 				button(_sx + _dx * 2, _sy, _x, _y, "全暗四人", RGB(100, 100, 100), 25);
 				supermode = 0, tp = 4, Tp = 4, historymode = 0, showmode = 0;
 				Sleep(200);
 				PLAY4.MC();
+				PRINT_main();
 				break;
 			case 4:
 				button(_sx + _dx * 3, _sy, _x, _y, "随机四人", RGB(100, 100, 100), 25);
 				supermode = 1, tp = 4, Tp = 4, historymode = 0, showmode = 0;
 				Sleep(200);
 				PLAY4.MC();
+				PRINT_main();
 				break;
 			case 5:
 				button(_sx + _dx * 4, _sy, _x, _y, "加载复盘", RGB(100, 100, 100), 25);
 				historymode = 1;
 				Sleep(200);
 				HISTORY();
+				PRINT_main();
 				break;
 			case 6:
 				button(_sx + _dx * 5, _sy, _x, _y, "退出游戏", RGB(100, 100, 100), 25);
@@ -225,7 +220,23 @@ int main()
 void Pub::Game_Initialize()
 {
 	srand(uint32_t(time(NULL)));
-	if (!Record::DONT_REC) CreateDirectory("Records", NULL);
+	DO_REC = 1, AutoUpdate = 0, MAX_STEPS = 400, MAX_JUMPS = 5, REST_STEPS = 40;
+	freopen_s(&stream, "settings.config", "r", stdin);
+	string key;
+	while (cin >> key)
+	{
+		if (key == "DO_REC") cin >> DO_REC;
+		if (key == "AutoUpdate") cin >> AutoUpdate;
+		if (key == "MAX_STEPS") cin >> MAX_STEPS;
+		if (key == "MAX_JUMPS") cin >> MAX_JUMPS;
+		if (key == "REST_STEPS") cin >> REST_STEPS;
+		if (key == "PLAY_BGM") cin >> PLAY_BGM;
+		if (key == "PLAY_SOUND") cin >> PLAY_SOUND;
+		if (key == "END") break;
+	}
+	freopen_s(&stream, "CON", "r", stdin);
+	if (DO_REC) CreateDirectory("Records", NULL);
+	if (PLAY_BGM) PlaySound("Resources/BGM.wav", NULL, SND_ASYNC | SND_LOOP);
 	loadimage(&bk0, _T("Resources/background0.png"), 1080, 720);
 	loadimage(&bk2, _T("Resources/background3.jpg"), 560, 720);
 	loadimage(&bk4, _T("Resources/background6.png"), 720, 720);
@@ -352,6 +363,8 @@ bool Pub::NORMAL_GO(Chess A, Chess B)
 }
 void Pub::PS(int sound)
 {
+	if (historymode == 0 && sound != 5) RS(sound);
+	if (!PLAY_SOUND) return;
 	switch (sound)
 	{
 	case 0:
@@ -376,7 +389,6 @@ void Pub::PS(int sound)
 		PlaySound("Resources/dead.wav", NULL, SND_ASYNC);
 		break;
 	}
-	if (historymode == 0 && sound != 5) RS(sound);
 }
 void Pub::WIN(int who)
 {
@@ -489,6 +501,7 @@ void _2::PRINTNOW()
 		button(850 + d * (cnt % 5), 65 + d * (cnt / 5), d, d, tmp, MyCol[2], 25);
 		cnt++;
 	}
+	if (STEPS_STATUS == 1 || STEPS_STATUS == 2) button(600, 15, 450, 40, "请注意，相持时间已经接近系统限制", RGB(200, 0, 0));
 	EndBatchDraw();
 }
 bool _2::ROAD_GO_N(Pos F, Pos T)
@@ -579,6 +592,7 @@ void _2::MC()
 	ExMessage msg;
 	int sc = -1;
 	np = 1;
+	STEPS_STATUS = 0;
 	PRINTNOW();
 	PS(0);
 	bool did = 0;
@@ -596,12 +610,17 @@ void _2::MC()
 				}
 				if (IS_MSG(msg, 710, 580, 60, 50))
 				{
-					if (P[np].skiptimes == 5) continue;
+					if (P[np].skiptimes == MAX_JUMPS) continue;
 					P[np].skiptimes++;
 					np = 3 - np;
+					STEPS_STATUS = Step();
 					PRINTNOW();
-					Step();
 					PS(1);
+					if (STEPS_STATUS == 2)
+					{
+						WIN(0);
+						return;
+					}
 					continue;
 				}
 			}
@@ -614,12 +633,17 @@ void _2::MC()
 				}
 				if (IS_MSG(msg, 710, 195, 60, 50))
 				{
-					if (P[np].skiptimes == 5) continue;
+					if (P[np].skiptimes == MAX_JUMPS) continue;
 					P[np].skiptimes++;
 					np = 3 - np;
+					STEPS_STATUS = Step();
 					PRINTNOW();
-					Step();
 					PS(1);
+					if (STEPS_STATUS == 2)
+					{
+						WIN(0);
+						return;
+					}
 					continue;
 				}
 			}
@@ -635,13 +659,18 @@ void _2::MC()
 					if (tmp.cflag == 0 && sc == j)
 					{
 						P[np].MyChess[j].cflag = 2;
-						Step();
+						STEPS_STATUS = Step();
 						Show(np, j);
 						did = 1;
 						sc = -1;
 						np = 3 - np;
 						PRINTNOW();
 						PS(1);
+						if (STEPS_STATUS == 2)
+						{
+							WIN(0);
+							return;
+						}
 						break;
 					}
 					sc = j;
@@ -661,7 +690,7 @@ void _2::MC()
 					int nextsd = -1;
 					if (GOABLE(P[np].MyChess[sc], P[3 - np].MyChess[j], 1))
 					{
-						Step();
+						STEPS_STATUS = Step();
 						did = 1;
 						Chess c1 = P[np].MyChess[sc], c2 = P[3 - np].MyChess[j];
 						P[np].MyChess[sc].cpg = c2.cpg, P[np].MyChess[sc].cpx = c2.cpx, P[np].MyChess[sc].cpy = c2.cpy;
@@ -692,7 +721,6 @@ void _2::MC()
 							P[3 - np].MyChess[j].live = 0, P[3 - np].DeadChess.push_back(_4LEVELMAP[P[3 - np].MyChess[j].level]), Dead(3 - np, j);
 							break;
 						}
-
 						np = 3 - np;
 					}
 					sc = -1;
@@ -706,6 +734,11 @@ void _2::MC()
 					if (IS_DEAD(3 - np))
 					{
 						WIN(np);
+						return;
+					}
+					if (STEPS_STATUS == 2)
+					{
+						WIN(0);
 						return;
 					}
 					break;
@@ -722,7 +755,7 @@ void _2::MC()
 						int sx = _2startposx[g] + _2divx * trans[g] * (Y - 1), sy = _2startposy[g] + _2divy * trans[g] * (X - 1);
 						if (IS_MSG(msg,sx,sy,ChessX,ChessY) && GOABLE(P[np].MyChess[sc], Chess(0, g, X, Y), 0))
 						{
-							Step();
+							STEPS_STATUS = Step();
 							P[np].MyChess[sc].cpg = g, P[np].MyChess[sc].cpx = X, P[np].MyChess[sc].cpy = Y;
 							Move(np, sc, g, X, Y);
 							np = 3 - np;
@@ -730,6 +763,11 @@ void _2::MC()
 							sc = -1;
 							PRINTNOW();
 							PS(1);
+							if (STEPS_STATUS == 2)
+							{
+								WIN(0);
+								return;
+							}
 						}
 					}
 				}
@@ -798,6 +836,7 @@ void _4::PRINTNOW()
 			button(ppx[i] + DD * (cnt % 5), ppy[i] + 50 + DD * (cnt / 5), L, L, tname, MyCol[i]);
 		}
 	}
+	if (STEPS_STATUS == 1 || STEPS_STATUS == 2) button(600, 15, 450, 40, "请注意，相持时间已经接近系统限制", RGB(200, 0, 0));
 	EndBatchDraw();
 }
 bool _4::TEAM_WIN()
@@ -892,6 +931,7 @@ void _4::MC()
 	Go_Path.clear();
 	ExMessage msg;
 	np = 1;
+	STEPS_STATUS = 0;
 	PRINTNOW();
 	PS(0);
 	bool did = 0;
@@ -903,7 +943,7 @@ void _4::MC()
 			did = 0;
 			if (IS_MSG(msg, ppx[np] + 150, ppy[np], 40, 40))//投降
 			{
-				Step();
+				STEPS_STATUS = Step();
 				Player_Dead(np);
 				P[np].live = 0;
 				for (int i = 0; i < _CN; i++) P[np].MyChess[i].live = 0;
@@ -918,16 +958,26 @@ void _4::MC()
 				}
 				PRINTNOW();
 				PS(6);
+				if (STEPS_STATUS == 2)
+				{
+					WIN(0);
+					return;
+				}
 				continue;
 			}
 			if (IS_MSG(msg, ppx[np] + 193, ppy[np], 40, 40))//跳过
 			{
-				if (P[np].skiptimes == 5) continue;
-				Step();
+				if (P[np].skiptimes == MAX_JUMPS) continue;
+				STEPS_STATUS = Step();
 				P[np].skiptimes++, GO_NEXT();
 				sp = 0, sc = -1, lsp = 0, lsc = -1;
 				PRINTNOW();
 				PS(1);
+				if (STEPS_STATUS == 2)
+				{
+					WIN(0);
+					return;
+				}
 				continue;
 			}
 			for (int i = 1; i <= 4 && did == 0; i++)
@@ -965,13 +1015,18 @@ void _4::MC()
 				{
 					if (P[np].MyChess[lsc].cflag == 0)
 					{
-						Step();
+						STEPS_STATUS = Step();
 						Show(np, lsc);
 						P[np].MyChess[lsc].cflag = 2;
 						lsp = 0, lsc = -1, sp = 0, sc = -1;
 						GO_NEXT();
 						PRINTNOW();
 						PS(1);
+						if (STEPS_STATUS == 2)
+						{
+							WIN(0);
+							return;
+						}
 						continue;
 					}
 				}
@@ -997,7 +1052,7 @@ void _4::MC()
 				if (GOABLE(A, B, 1))
 				{
 					did = 1;
-					Step();
+					STEPS_STATUS = Step();
 					Chess c1 = P[lsp].MyChess[lsc], c2 = P[sp].MyChess[sc];
 					P[lsp].MyChess[lsc].cpg = c2.cpg, P[lsp].MyChess[lsc].cpx = c2.cpx, P[lsp].MyChess[lsc].cpy = c2.cpy;
 					Move(lsp, lsc, c2.cpg, c2.cpx, c2.cpy);
@@ -1070,6 +1125,11 @@ void _4::MC()
 				sp = 0, sc = -1, lsp = 0, lsc = -1;
 				PRINTNOW();
 				if (nextsd != -1) PS(nextsd);
+				if (STEPS_STATUS == 2)
+				{
+					WIN(0);
+					return;
+				}
 			}
 			else
 			{
@@ -1102,13 +1162,18 @@ void _4::MC()
 				if (did == 0) continue;
 				if (GOABLE(P[lsp].MyChess[lsc], Chess(0, G, X, Y), 0))
 				{
-					Step();
+					STEPS_STATUS = Step();
 					P[lsp].MyChess[lsc].cpg = G, P[lsp].MyChess[lsc].cpx = X, P[lsp].MyChess[lsc].cpy = Y;
 					Move(lsp, lsc, G, X, Y);
 					sp = 0, sc = -1, lsp = 0, lsc = -1;
 					GO_NEXT();
 					PRINTNOW();
 					PS(1);
+					if (STEPS_STATUS == 2)
+					{
+						WIN(0);
+						return;
+					}
 					continue;
 				}
 			}
@@ -1117,7 +1182,7 @@ void _4::MC()
 }
 void Record::Record_Initialize()
 {
-	if (DONT_REC) return;
+	if (!DO_REC) return;
 	cnt_step = 0;
 	string NAME = "Records/Rec-", TS = "";
 	if (Tp == 2) NAME += "2-";
@@ -1164,9 +1229,13 @@ void Record::RS(int sound)
 {
 	printf("sound %d\n", sound);
 }
-void Record::Step()
+int Record::Step()
 {
+	cnt_step++;
+	if (cnt_step > MAX_STEPS) return 2;
+	if (cnt_step > MAX_STEPS - REST_STEPS) return 1;
 	printf("step %d\n", ++cnt_step);
+	return 0;
 }
 void Record::Player_Dead(int who)
 {
@@ -1199,30 +1268,15 @@ void HISTORY()
 		return;
 	}
 	int total_page = (N_R - 1) / EP + 1;
+	bool ft = 1, did = 0;
 	ExMessage msg;
+	char tname[100];
 	while (1)
 	{
-		BeginBatchDraw();
-		cleardevice();
-		putimage(0, 0, &bk0);
-		if (PAGE != 1) button(30, 30, 80, 50, "上一页", RGB(100, 100, 100), 25);
-		if (PAGE != total_page) button(970, 30, 80, 50, "下一页", RGB(100, 100, 100), 25);
-		button(30, 650, 60, 40, "返回", RGB(100, 100, 100), 25);
-		char tname[100];
-		string tmp = "复盘列表:";
-		tmp += to_string(PAGE);
-		tmp += "/";
-		tmp += to_string(total_page);
-		strcpy_s(tname, tmp.c_str());
-		button(120, 30, 840, 50, tname, RGB(255, 0, 0), 25);
-		for (int i = (PAGE - 1) * EP; i < min(PAGE * EP, N_R); i++)
-		{
-			strcpy_s(tname, Recs[i].c_str());
-			button(120, 100 + 50 * (i - (PAGE - 1) * EP), 840, 45, tname, RGB(0, 255, 0));
-		}
-		EndBatchDraw();
+		did = 0;
 		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
 		{
+			did = 1;
 			if (PAGE != 1 && FH.IS_MSG(msg, 30, 30, 80, 50))
 			{
 				PAGE--;
@@ -1241,7 +1295,6 @@ void HISTORY()
 					strcpy_s(tname, Recs[i].c_str());
 					button(120, 100 + 50 * (i - (PAGE - 1) * EP), 840, 45, tname, RGB(100, 100, 100));
 					Sleep(300);
-					FILE* stream;
 					freopen_s(&stream, tname, "r", stdin);
 					cleardevice();
 					string key;
@@ -1463,5 +1516,95 @@ void HISTORY()
 				}
 			}
 		}
+		if (ft || did)
+		{
+			ft = 0, did = 0;
+			BeginBatchDraw();
+			cleardevice();
+			putimage(0, 0, &bk0);
+			if (PAGE != 1) button(30, 30, 80, 50, "上一页", RGB(100, 100, 100), 25);
+			if (PAGE != total_page) button(970, 30, 80, 50, "下一页", RGB(100, 100, 100), 25);
+			button(30, 650, 60, 40, "返回", RGB(100, 100, 100), 25);
+			string tmp = "复盘列表:";
+			tmp += to_string(PAGE);
+			tmp += "/";
+			tmp += to_string(total_page);
+			strcpy_s(tname, tmp.c_str());
+			button(120, 30, 840, 50, tname, RGB(255, 0, 0), 25);
+			for (int i = (PAGE - 1) * EP; i < min(PAGE * EP, N_R); i++)
+			{
+				strcpy_s(tname, Recs[i].c_str());
+				button(120, 100 + 50 * (i - (PAGE - 1) * EP), 840, 45, tname, RGB(0, 255, 0));
+			}
+			EndBatchDraw();
+		}
 	}
+}
+void Setting()
+{
+	ExMessage msg;
+	Pub FS;
+	bool ft = 1, did = 0;
+	while (1)
+	{
+		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
+		{
+			did = 1;
+			if (FS.IS_MSG(msg, 30, 650, 60, 40)) return;
+		}
+		if (ft || did)
+		{
+			ft = 0, did = 0;
+			BeginBatchDraw();
+			cleardevice();
+			putimage(0, 0, &bk0);
+			button(500, 20, 100, 50, "设置", RGB(100, 100, 200), 25);
+			button(30, 650, 60, 40, "返回", RGB(100, 100, 100), 25);
+			string str[7] = { "自动保存对局","自动更新软件","最大对局步数","最大跳过次数","警告剩余步数","播放背景音乐","播放落子音效" };
+			for (int i = 0; i < 7; i++)
+			{
+				char tname[20];
+				strcpy_s(tname, str[i].c_str());
+				button(300, 90 + 80 * i, 300, 60, tname, RGB(200, 100, 0), 25);
+				bool op;
+				int num;
+				switch (i)
+				{
+				case 0:
+				case 1:
+				case 5:
+				case 6:
+
+				}
+			}
+			EndBatchDraw();
+		}
+		
+	}
+	
+}
+void PRINT_main()
+{
+	int _dx = 170, _sx = 40, _sy = 120, _x = 150, _y = 60;
+	BeginBatchDraw();
+	cleardevice();
+	putimage(0, 0, &bk0);
+	button(_sx + 110, 40, 780, 60, "请选择游玩模式:", RGB(200, 20, 20), 30);
+	button(_sx + 900, 40, 100, 60, "设置", RGB(100, 100, 200), 30);
+	button(_sx, 40, 100, 60, "关于", RGB(100, 100, 200), 30);
+	button(_sx, _sy, _x, _y, "全暗双人", RGB(20, 200, 20), 25);
+	button(_sx + _dx, _sy, _x, _y, "随机双人", RGB(20, 200, 20), 25);
+	button(_sx + _dx * 2, _sy, _x, _y, "全暗四人", RGB(20, 200, 20), 25);
+	button(_sx + _dx * 3, _sy, _x, _y, "随机四人", RGB(20, 200, 20), 25);
+	button(_sx + _dx * 4, _sy, _x, _y, "加载复盘", RGB(20, 200, 20), 25);
+	button(_sx + _dx * 5, _sy, _x, _y, "退出游戏", RGB(20, 200, 20), 25);
+	LOGFONT f;
+	gettextstyle(&f);
+	f.lfHeight = 18;
+	_tcscpy_s(f.lfFaceName, "黑体");
+	f.lfQuality = ANTIALIASED_QUALITY;
+	settextstyle(&f);
+	outtextxy(30, 670, "version 0.5.2");
+	outtextxy(670, 670, "Copyright 2024 PRXOR. All rights reserved.");
+	EndBatchDraw();
 }
