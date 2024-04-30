@@ -363,4 +363,7 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # Local Records
-/Records
+Records/
+
+# Wastes
+Wastes/
