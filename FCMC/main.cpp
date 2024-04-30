@@ -19,8 +19,8 @@
 
 using namespace std;
 const int _CN = 25;
-int np, tp, Tp, MAX_STEPS, MAX_JUMPS, REST_STEPS, STEPS_STATUS = 0, PLAY_BGM, PLAY_SOUND;
-bool supermode, historymode, showmode, AutoUpdate, DO_REC;
+int np, tp, Tp, MAX_STEPS, MAX_JUMPS, REST_STEPS, STEPS_STATUS = 0;
+bool supermode, historymode, showmode, AutoUpdate, DO_REC, PLAY_BGM, PLAY_SOUND;
 FILE* stream;
 
 struct Chess
@@ -164,7 +164,7 @@ int main()
 		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
 		{
 			for (mode = 1; mode <= 6 && !(_sx + _dx * (mode - 1) <= msg.x && msg.x <= _sx + _dx * (mode - 1) + _x && _sy <= msg.y && msg.y <= _sy + _y); mode++) {}
-			if (_sx + 930 <= msg.x && msg.x <= _x + 1000 && 40 <= msg.y && msg.y <= 100) mode = 0;
+			if (_sx + 900 <= msg.x && msg.x <= _x + 1000 && 40 <= msg.y && msg.y <= 100) mode = 0;
 			switch (mode)
 			{
 			case 0:
@@ -1543,14 +1543,55 @@ void HISTORY()
 void Setting()
 {
 	ExMessage msg;
+	IMAGE on, off, select;
+	loadimage(&on, "Resources/on.png", 120, 60);
+	loadimage(&off, "Resources/off.png", 120, 60);
+	loadimage(&select, "Resources/select.png", 200, 60);
 	Pub FS;
 	bool ft = 1, did = 0;
+	int vx = 700, vy = 90,div = 80;
+	bool* op[4] = { &DO_REC, &AutoUpdate, &PLAY_BGM, &PLAY_SOUND };
+	int* num[3] = { &MAX_STEPS, &MAX_JUMPS, &REST_STEPS };
 	while (1)
 	{
 		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
 		{
 			did = 1;
-			if (FS.IS_MSG(msg, 30, 650, 60, 40)) return;
+			if (FS.IS_MSG(msg, 30, 650, 60, 40))
+			{
+				freopen_s(&stream, "settings.config", "w", stdout);
+				string sts[7] = { "DO_REC","AutoUpdate","PLAY_BGM","PLAY_SOUND","MAX_STEPS","MAX_JUMPS","REST_STEPS" };
+				for (int i = 0; i < 7; i++)
+				{
+					printf("%s %d\n", sts[i].c_str(), (int)((i < 4) ? *op[i] : *num[i - 4]));
+				}
+				printf("END 0");
+				freopen_s(&stream, "CON", "w", stdout);
+				return;
+			}
+			for (int i = 0; i < 4; i++)
+			{
+				if ((msg.x - vx - 30) * (msg.x - vx - 30) + (msg.y - vy - 30 - div * i) * (msg.y - vy - 30 - div * i) <= 900 || (msg.x - vx - 90) * (msg.x - vx - 90) + (msg.y - vy - 30 - div * i) * (msg.y - vy - 30 - div * i) <= 900 || (vx + 30 <= msg.x && msg.x <= vx + 90 && vy + div * i <= msg.y && msg.y <= vy + div * i + 60))
+				{
+					*op[i] = !(*op[i]);
+					if (i == 2)
+					{
+						if (*op[i] == 1) PlaySound("Resources/BGM.wav", NULL, SND_ASYNC | SND_LOOP);
+						else PlaySound(NULL, NULL, NULL);
+					}
+				}
+			}
+			for (int i = 4; i < 7; i++)
+			{
+				if (FS.IS_MSG(msg, vx - 40, vy + div * i, 50, 60)) (*num[i - 4])--;
+				if (FS.IS_MSG(msg, vx + 110, vy + div * i, 50, 60)) (*num[i - 4])++;
+				if ((*num[i - 4]) < 0) (*num[i - 4]) = 0;
+				if (REST_STEPS >= MAX_STEPS + 20)
+				{
+					if (i == 4) (*num[i - 4])++;
+					else (*num[i - 4])--;
+				}
+			}
 		}
 		if (ft || did)
 		{
@@ -1558,30 +1599,29 @@ void Setting()
 			BeginBatchDraw();
 			cleardevice();
 			putimage(0, 0, &bk0);
-			button(500, 20, 100, 50, "设置", RGB(100, 100, 200), 25);
+			button(500, 20, 100, 50, "设置", RGB(100, 100, 200), 35);
 			button(30, 650, 60, 40, "返回", RGB(100, 100, 100), 25);
-			string str[7] = { "自动保存对局","自动更新软件","最大对局步数","最大跳过次数","警告剩余步数","播放背景音乐","播放落子音效" };
+			string str[7] = { "自动保存对局","自动更新软件","播放背景音乐","播放落子音效","最大对局步数","最大跳过次数","警告剩余步数" };
 			for (int i = 0; i < 7; i++)
 			{
 				char tname[20];
 				strcpy_s(tname, str[i].c_str());
-				button(300, 90 + 80 * i, 300, 60, tname, RGB(200, 100, 0), 25);
-				bool op;
-				int num;
-				switch (i)
+				button(200, vy + div * i, 300, 60, tname, RGB(200, 100, 0), 25);
+				if (i < 4)
 				{
-				case 0:
-				case 1:
-				case 5:
-				case 6:
-
+					if (*op[i]) putnewbk(NULL, vx, vy + div * i, &on);
+					else putnewbk(NULL, vx, vy + div * i, &off);
+				}
+				else
+				{
+					putnewbk(NULL, vx - 40, vy + div * i, &select);
+					settextstyle(30, 0, "黑体");
+					outtextxy(vx + 60 - textwidth(to_string(*num[i-4]).c_str()) / 2, vy + 30 + div * i - textheight(to_string(*num[i-4]).c_str()) / 2, to_string(*num[i-4]).c_str());
 				}
 			}
 			EndBatchDraw();
 		}
-		
 	}
-	
 }
 void PRINT_main()
 {
