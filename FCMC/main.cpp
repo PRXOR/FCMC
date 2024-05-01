@@ -84,6 +84,7 @@ void button(int x, int y, int w, int h, const char* text,COLORREF col,int size=2
 	int ty = y + (h - textheight(text_)) / 2;
 	outtextxy(tx, ty, text_);
 }
+void Setting();
 class Record
 {
 	int cnt_step = 0;
@@ -157,7 +158,6 @@ void Start_Play()
 	cv.wait(lck);
 	mciSendString("close BGM", 0, 0, 0);
 }
-void Setting();
 void HISTORY();
 void PRINT_main();
 
@@ -170,7 +170,7 @@ int main()
 	button(240, 240, 600, 240, "欢迎来到四国军棋 :)",RGB(491, 491, 100), 50);
 	Sleep(500);
 	cleardevice();
-	int mode = 0, _dx = 170, _sx = 40, _sy = 120, _x = 150, _y = 60;
+	int mode = 0, _dx = 170, _sx = 40, _sy = 130, _x = 150, _y = 60;
 	ExMessage msg;
 	PRINT_main();
 	while (1)
@@ -182,7 +182,7 @@ int main()
 			switch (mode)
 			{
 			case 0:
-				button(_sx + 900, 40, 100, 60, "设置", RGB(100, 100, 100), 30);
+				button(_sx + 900, 50, 100, 60, "设置", RGB(100, 100, 100), 30);
 				Sleep(200);
 				Setting();
 				PRINT_main();
@@ -224,6 +224,13 @@ int main()
 				break;
 			case 6:
 				button(_sx + _dx * 5, _sy, _x, _y, "退出游戏", RGB(100, 100, 100), 25);
+				freopen_s(&stream, "settings.config", "w", stdout);
+				string sts[7] = { "DO_REC","AutoUpdate","PLAY_BGM","PLAY_SOUND","MAX_STEPS","MAX_JUMPS","REST_STEPS" };
+				bool* op[4] = { &DO_REC, &AutoUpdate, &PLAY_BGM, &PLAY_SOUND };
+				int* num[3] = { &MAX_STEPS, &MAX_JUMPS, &REST_STEPS };
+				for (int i = 0; i < 7; i++) printf("%s %d\n", sts[i].c_str(), (int)((i < 4) ? *op[i] : *num[i - 4]));
+				printf("END 0");
+				freopen_s(&stream, "CON", "w", stdout);
 				Sleep(200);
 				return 0;
 			}
@@ -248,6 +255,7 @@ void Pub::Game_Initialize()
 		if (key == "PLAY_SOUND") cin >> PLAY_SOUND;
 		if (key == "END") break;
 	}
+	cin.clear();
 	freopen_s(&stream, "CON", "r", stdin);
 	if (DO_REC) CreateDirectory("Records", NULL);
 	if (PLAY_BGM) hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)Start_Play, NULL, 0, &pid);
@@ -516,6 +524,7 @@ void _2::PRINTNOW()
 		cnt++;
 	}
 	if (STEPS_STATUS == 1 || STEPS_STATUS == 2) button(600, 15, 450, 40, "请注意，相持时间已经接近系统限制", RGB(200, 0, 0));
+	button(920, 660, 60, 40, "设置", RGB(100, 100, 200), 25);
 	EndBatchDraw();
 }
 bool _2::ROAD_GO_N(Pos F, Pos T)
@@ -660,6 +669,12 @@ void _2::MC()
 					}
 					continue;
 				}
+			}
+			if (IS_MSG(msg, 920, 660, 60, 40))
+			{
+				Setting();
+				PRINTNOW();
+				did = 1;
 			}
 			for (int j = 0; j < _CN; j++)
 			{
@@ -850,7 +865,8 @@ void _4::PRINTNOW()
 			button(ppx[i] + DD * (cnt % 5), ppy[i] + 50 + DD * (cnt / 5), L, L, tname, MyCol[i]);
 		}
 	}
-	if (STEPS_STATUS == 1 || STEPS_STATUS == 2) button(600, 15, 450, 40, "请注意，相持时间已经接近系统限制", RGB(200, 0, 0));
+	button(950, 50, 100, 60, "设置", RGB(100, 100, 200), 30);
+	if (STEPS_STATUS == 1 || STEPS_STATUS == 2) button(850, 10, 220, 30, "相持时间已经接近限制", RGB(200, 0, 0));
 	EndBatchDraw();
 }
 bool _4::TEAM_WIN()
@@ -993,6 +1009,12 @@ void _4::MC()
 					return;
 				}
 				continue;
+			}
+			if (IS_MSG(msg, 950, 50, 100, 60))
+			{
+				Setting();
+				PRINTNOW();
+				did = 1;
 			}
 			for (int i = 1; i <= 4 && did == 0; i++)
 			{
@@ -1316,12 +1338,13 @@ void HISTORY()
 					if (key != "REC")
 					{
 						button(40, 40, 1000, 50, "ERROR!NOT A RECORD FILE!", RGB(255, 255, 0), 30);
+						cin.clear();
 						freopen_s(&stream, "CON", "r", stdin);
 						Sleep(1000);
 						break;
 					}
 					cin >> Tp >> supermode;
-					tp = Tp, np = 0, showmode = 0;
+					tp = Tp, np = 0, showmode = 0, STEPS_STATUS = 0;
 					FH.Go_Path.clear();
 					int ns = 0, op = 0, go_back = 0, lsp, lsc, g, x, y;
 					cin >> key;
@@ -1336,6 +1359,7 @@ void HISTORY()
 						if (key != "N")
 						{
 							button(40, 40, 1000, 50, "ERROR!AN OLD SUPER RECORD!", RGB(255, 255, 0), 30);
+							cin.clear();
 							freopen_s(&stream, "CON", "r", stdin);
 							Sleep(1000);
 							break;
@@ -1376,7 +1400,7 @@ void HISTORY()
 									
 									if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN )
 									{
-										
+										bool reprint = 0;
 										if (FH.IS_MSG(msg, 100, 30, 80, 30)) break;
 										if (FH.IS_MSG(msg, 30, 650, 60, 40))
 										{
@@ -1385,7 +1409,16 @@ void HISTORY()
 										}
 										if (FH.IS_MSG(msg, 30, 70, 60, 30))
 										{
+											reprint = 1;
 											showmode = 1 - showmode;
+										}
+										if (FH.IS_MSG(msg, 950, 50, 100, 60))
+										{
+											reprint = 1;
+											Setting();
+										}
+										if (reprint)
+										{
 											H4.PRINTNOW();
 											BeginBatchDraw();
 											button(30, 30, 60, 30, "复盘", RGB(255, 0, 0), 25);
@@ -1466,6 +1499,7 @@ void HISTORY()
 								{
 									if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
 									{
+										bool reprint = 0;
 										if (FH.IS_MSG(msg, 970, 300, 80, 30)) break;
 										if (FH.IS_MSG(msg, 990, 660, 60, 40))
 										{
@@ -1474,7 +1508,16 @@ void HISTORY()
 										}
 										if (FH.IS_MSG(msg, 900, 340, 60, 30))
 										{
+											reprint = 1;
 											showmode = 1 - showmode;
+										}
+										if (FH.IS_MSG(msg, 920, 660, 60, 40))
+										{
+											reprint = 1;
+											Setting();
+										}
+										if (reprint)
+										{
 											H2.PRINTNOW();
 											BeginBatchDraw();
 											button(900, 300, 60, 30, "复盘", RGB(255, 0, 0), 25);
@@ -1526,6 +1569,7 @@ void HISTORY()
 						H2.PRINTNOW();
 						FH.WIN(op);
 					}
+					cin.clear();
 					freopen_s(&stream, "CON", "r", stdin);
 				}
 			}
@@ -1571,18 +1615,7 @@ void Setting()
 		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
 		{
 			did = 1;
-			if (FS.IS_MSG(msg, 30, 650, 60, 40))
-			{
-				freopen_s(&stream, "settings.config", "w", stdout);
-				string sts[7] = { "DO_REC","AutoUpdate","PLAY_BGM","PLAY_SOUND","MAX_STEPS","MAX_JUMPS","REST_STEPS" };
-				for (int i = 0; i < 7; i++)
-				{
-					printf("%s %d\n", sts[i].c_str(), (int)((i < 4) ? *op[i] : *num[i - 4]));
-				}
-				printf("END 0");
-				freopen_s(&stream, "CON", "w", stdout);
-				return;
-			}
+			if (FS.IS_MSG(msg, 30, 650, 60, 40)) return;
 			for (int i = 0; i < 4; i++)
 			{
 				if ((msg.x - vx - 30) * (msg.x - vx - 30) + (msg.y - vy - 30 - div * i) * (msg.y - vy - 30 - div * i) <= 900 || (msg.x - vx - 90) * (msg.x - vx - 90) + (msg.y - vy - 30 - div * i) * (msg.y - vy - 30 - div * i) <= 900 || (vx + 30 <= msg.x && msg.x <= vx + 90 && vy + div * i <= msg.y && msg.y <= vy + div * i + 60))
@@ -1600,7 +1633,7 @@ void Setting()
 				if (FS.IS_MSG(msg, vx - 40, vy + div * i, 50, 60)) (*num[i - 4])--;
 				if (FS.IS_MSG(msg, vx + 110, vy + div * i, 50, 60)) (*num[i - 4])++;
 				if ((*num[i - 4]) < 0) (*num[i - 4]) = 0;
-				if (REST_STEPS >= MAX_STEPS + 20)
+				if (REST_STEPS + 20 > MAX_STEPS)
 				{
 					if (i == 4) (*num[i - 4])++;
 					else (*num[i - 4])--;
@@ -1639,13 +1672,13 @@ void Setting()
 }
 void PRINT_main()
 {
-	int _dx = 170, _sx = 40, _sy = 120, _x = 150, _y = 60;
+	int _dx = 170, _sx = 40, _sy = 130, _x = 150, _y = 60;
 	BeginBatchDraw();
 	cleardevice();
 	putimage(0, 0, &bk0);
-	button(_sx + 110, 40, 780, 60, "请选择游玩模式:", RGB(200, 20, 20), 30);
-	button(_sx + 900, 40, 100, 60, "设置", RGB(100, 100, 200), 30);
-	button(_sx, 40, 100, 60, "关于", RGB(100, 100, 200), 30);
+	button(_sx + 110, 50, 780, 60, "请选择游玩模式:", RGB(200, 20, 20), 30);
+	button(_sx + 900, 50, 100, 60, "设置", RGB(100, 100, 200), 30);
+	button(_sx, 50, 100, 60, "关于", RGB(100, 100, 200), 30);
 	button(_sx, _sy, _x, _y, "全暗双人", RGB(20, 200, 20), 25);
 	button(_sx + _dx, _sy, _x, _y, "随机双人", RGB(20, 200, 20), 25);
 	button(_sx + _dx * 2, _sy, _x, _y, "全暗四人", RGB(20, 200, 20), 25);
@@ -1658,7 +1691,7 @@ void PRINT_main()
 	_tcscpy_s(f.lfFaceName, "黑体");
 	f.lfQuality = ANTIALIASED_QUALITY;
 	settextstyle(&f);
-	outtextxy(30, 670, "version 0.5.3");
+	outtextxy(30, 670, "version 0.5.4");
 	outtextxy(670, 670, "Copyright 2024 PRXOR. All rights reserved.");
 	EndBatchDraw();
 }
