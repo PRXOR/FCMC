@@ -13,15 +13,21 @@
 #include <iomanip>
 #include <mmsystem.h>
 #include <dsound.h>
+#include <conio.h>
+#include <condition_variable>
+#include <mutex>
 #pragma comment(lib, "WINMM.LIB")
 #pragma comment(lib, "MSIMG32.LIB")
 #pragma comment( linker, "/subsystem:\"windows\" /entry:\"mainCRTStartup\"" )
-
 using namespace std;
 const int _CN = 25;
 int np, tp, Tp, MAX_STEPS, MAX_JUMPS, REST_STEPS, STEPS_STATUS = 0;
-bool supermode, historymode, showmode, AutoUpdate, DO_REC, PLAY_BGM, PLAY_SOUND;
+bool supermode, historymode, showmode, AutoUpdate, DO_REC, PLAY_BGM, PLAY_SOUND;// , once_played = 0;
 FILE* stream;
+HANDLE hThread;
+DWORD pid;
+mutex mtx;
+condition_variable cv;
 
 struct Chess
 {
@@ -143,6 +149,14 @@ public:
 	void PRINTNOW();
 	void MC();
 } PLAY4, H4;
+void Start_Play()
+{
+	unique_lock<mutex> lck(mtx);
+	mciSendString("open Resources/BGM.mp3 alias BGM type mpegvideo", 0, 0, 0);
+	mciSendString("play BGM repeat", 0, 0, 0);
+	cv.wait(lck);
+	mciSendString("close BGM", 0, 0, 0);
+}
 void Setting();
 void HISTORY();
 void PRINT_main();
@@ -236,7 +250,7 @@ void Pub::Game_Initialize()
 	}
 	freopen_s(&stream, "CON", "r", stdin);
 	if (DO_REC) CreateDirectory("Records", NULL);
-	if (PLAY_BGM) PlaySound("Resources/BGM.wav", NULL, SND_ASYNC | SND_LOOP);
+	if (PLAY_BGM) hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)Start_Play, NULL, 0, &pid);
 	loadimage(&bk0, _T("Resources/background0.png"), 1080, 720);
 	loadimage(&bk2, _T("Resources/background3.jpg"), 560, 720);
 	loadimage(&bk4, _T("Resources/background6.png"), 720, 720);
@@ -1576,8 +1590,8 @@ void Setting()
 					*op[i] = !(*op[i]);
 					if (i == 2)
 					{
-						if (*op[i] == 1) PlaySound("Resources/BGM.wav", NULL, SND_ASYNC | SND_LOOP);
-						else PlaySound(NULL, NULL, NULL);
+						if (*op[i] == 1) hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)Start_Play, NULL, 0, &pid);
+						else cv.notify_one();
 					}
 				}
 			}
@@ -1644,7 +1658,7 @@ void PRINT_main()
 	_tcscpy_s(f.lfFaceName, "黑体");
 	f.lfQuality = ANTIALIASED_QUALITY;
 	settextstyle(&f);
-	outtextxy(30, 670, "version 0.5.2");
+	outtextxy(30, 670, "version 0.5.3");
 	outtextxy(670, 670, "Copyright 2024 PRXOR. All rights reserved.");
 	EndBatchDraw();
 }
