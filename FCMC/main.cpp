@@ -53,7 +53,7 @@ public:
 	Chess MyChess[_CN] = {};
 	vector<string> DeadChess;
 } P[5];
-void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg) //新版png
+static void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg) //新版png
 {
 	HDC dstDC = GetImageHDC(dstimg);
 	HDC srcDC = GetImageHDC(srcimg);
@@ -63,7 +63,7 @@ void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg) //新版png
 	AlphaBlend(dstDC, x, y, w, h, srcDC, 0, 0, w, h, bf);
 }
 IMAGE bk0, bk2, bk4;
-void button(int x, int y, int w, int h, const char* text,COLORREF col,int size=20)
+static void button(int x, int y, int w, int h, const char* text,COLORREF col,int size=20)
 {
 
 	setlinecolor(WHITE);//设置框边颜色
@@ -107,7 +107,7 @@ public:
 	static map< pair<int, int>, vector< pair<int, int> > > NA;//非铁道普攻
 	static vector<int> _2ROAD[8], _4ROAD[20];//1-7,1-18
 	static string _2LEVELMAP[41], _4LEVELMAP[41];
-	pair<int, int> XY[5] = { make_pair(2,2),make_pair(2,4),make_pair(3,3),make_pair(4,2),make_pair(4,4) };//行营
+	static pair<int, int> XY[5];//行营
 	string P_Name[5] = { "","玩家1","玩家2","玩家3","玩家4" };
 	bool IS_MSG(ExMessage msg, int spx, int spy, int lx, int ly) { return (spx <= msg.x && msg.x <= spx + lx && spy <= msg.y && msg.y <= spy + ly); }
 	void PS(int sound);
@@ -125,6 +125,7 @@ map< pair<int, int>, vector< pair<int, int> > > Pub::NA = {};
 vector<int> Pub::_2ROAD[8] = {}, Pub::_4ROAD[20] = {};
 string Pub::_2LEVELMAP[41] = {};
 string Pub::_4LEVELMAP[41] = {};
+pair<int, int> Pub::XY[5] = {};
 class _2 : public Pub
 {
 	int ChessX = 60, ChessY = 27;//棋子的长宽
@@ -150,7 +151,7 @@ public:
 	void PRINTNOW();
 	void MC();
 } PLAY4, H4;
-void Start_Play()
+static void Start_Play()
 {
 	unique_lock<mutex> lck(mtx);
 	mciSendString("open Resources/BGM.mp3 alias BGM type mpegvideo", 0, 0, 0);
@@ -262,6 +263,7 @@ void Pub::Game_Initialize()
 	loadimage(&bk0, _T("Resources/background0.png"), 1080, 720);
 	loadimage(&bk2, _T("Resources/background3.jpg"), 560, 720);
 	loadimage(&bk4, _T("Resources/background6.png"), 720, 720);
+	XY[0] = make_pair(2, 2), XY[1] = make_pair(2, 4), XY[2] = make_pair(3, 3), XY[3] = make_pair(4, 2), XY[4] = make_pair(4, 4);
 	_2LEVELMAP[10] = "军旗", _2LEVELMAP[20] = "地雷", _2LEVELMAP[21] = "炸弹", _2LEVELMAP[32] = "工兵", _2LEVELMAP[33] = "排长", _2LEVELMAP[34] = "连长", _2LEVELMAP[35] = "营长", _2LEVELMAP[36] = "团长", _2LEVELMAP[37] = "旅长", _2LEVELMAP[38] = "师长", _2LEVELMAP[39] = "军长", _2LEVELMAP[40] = "司令";
 	_4LEVELMAP[10] = "旗", _4LEVELMAP[20] = "雷", _4LEVELMAP[21] = "炸", _4LEVELMAP[32] = "兵", _4LEVELMAP[33] = "排", _4LEVELMAP[34] = "连", _4LEVELMAP[35] = "营", _4LEVELMAP[36] = "团", _4LEVELMAP[37] = "旅", _4LEVELMAP[38] = "师", _4LEVELMAP[39] = "军", _4LEVELMAP[40] = "司";
 	NA[make_pair(2, 2)].push_back(make_pair(1, 1)), NA[make_pair(2, 2)].push_back(make_pair(1, 2)), NA[make_pair(2, 2)].push_back(make_pair(1, 3)), NA[make_pair(2, 2)].push_back(make_pair(2, 1)), NA[make_pair(2, 2)].push_back(make_pair(2, 3)), NA[make_pair(2, 2)].push_back(make_pair(3, 1)), NA[make_pair(2, 2)].push_back(make_pair(3, 2)), NA[make_pair(2, 2)].push_back(make_pair(3, 3));
@@ -468,7 +470,7 @@ void _2::PRINTNOW()
 	cleardevice();
 	putimage(0, 0, &bk0);
 	putimage(0, 0, &bk2);
-	int lrx, lry, rx, ry;
+	int lrx = 0, lry = 0, rx = 0, ry = 0;
 	setcolor(RGB(80,20,20));
 	setfillcolor(RED);
 	for (int i = 0; i < Go_Path.size(); i++)
@@ -818,7 +820,7 @@ void _4::PRINTNOW()
 	putnewbk(NULL, 180, 0, &bk4);
 	setcolor(RGB(80, 20, 20));
 	setfillcolor(RED);
-	int lrx, lry, rx, ry;
+	int lrx = 0, lry = 0, rx = 0, ry = 0;
 	for (int i = 0; i < Go_Path.size(); i++)
 	{
 		Pos p = Go_Path[i];
