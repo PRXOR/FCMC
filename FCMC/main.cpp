@@ -1301,7 +1301,8 @@ void HISTORY()
 	cleardevice();
 	if (N_R == 0)
 	{
-		button(100, 200, 880, 420, "没有存档", RGB(255, 255, 0), 40);
+		putimage(0, 0, &bk0);
+		button(100, 150, 880, 420, "没有存档", RGB(255, 255, 0), 40);
 		Sleep(2000);
 		return;
 	}
@@ -1693,7 +1694,7 @@ void PRINT_main()
 	_tcscpy_s(f.lfFaceName, "黑体");
 	f.lfQuality = ANTIALIASED_QUALITY;
 	settextstyle(&f);
-	outtextxy(30, 670, "version 0.5.4");
+	outtextxy(30, 670, "version 0.5.5");
 	outtextxy(670, 670, "Copyright 2024 PRXOR. All rights reserved.");
 	EndBatchDraw();
 }
