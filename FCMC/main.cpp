@@ -1717,6 +1717,7 @@ void About()
 	settextstyle(&f);
 	outtextxy(_sx, 230, "Four Country Military Chess (FCMC)");
 	button(_sx, 300, 260, 80, "检 查 更 新", RGB(200, 150, 0), 40);
+	button(_sx + 280, 300, 80, 80, " ", RGB(200, 200, 200), 40);
 	f.lfHeight = 32;
 	settextstyle(&f);
 	outtextxy(_sx, _sy + 2 * _d, "Version 0.5.5");
