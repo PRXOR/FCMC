@@ -160,6 +160,7 @@ static void Start_Play()
 	mciSendString("close BGM", 0, 0, 0);
 }
 void HISTORY();
+void About();
 void PRINT_main();
 
 int main()
@@ -179,9 +180,16 @@ int main()
 		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
 		{
 			for (mode = 1; mode <= 6 && !(_sx + _dx * (mode - 1) <= msg.x && msg.x <= _sx + _dx * (mode - 1) + _x && _sy <= msg.y && msg.y <= _sy + _y); mode++) {}
-			if (_sx + 900 <= msg.x && msg.x <= _x + 1000 && 40 <= msg.y && msg.y <= 100) mode = 0;
+			if (_sx + 900 <= msg.x && msg.x <= _x + 1000 && 50 <= msg.y && msg.y <= 110) mode = 0;
+			if (_sx <= msg.x && msg.x <= _sx + 100 && 50 <= msg.y && msg.y <= 110) mode = -1;
 			switch (mode)
 			{
+			case -1:
+				button(_sx, 50, 100, 60, "关于", RGB(100, 100, 100), 30);
+				Sleep(200);
+				About();
+				PRINT_main();
+				break;
 			case 0:
 				button(_sx + 900, 50, 100, 60, "设置", RGB(100, 100, 100), 30);
 				Sleep(200);
@@ -1688,13 +1696,41 @@ void PRINT_main()
 	button(_sx + _dx * 3, _sy, _x, _y, "随机四人", RGB(20, 200, 20), 25);
 	button(_sx + _dx * 4, _sy, _x, _y, "加载复盘", RGB(20, 200, 20), 25);
 	button(_sx + _dx * 5, _sy, _x, _y, "退出游戏", RGB(20, 200, 20), 25);
+	EndBatchDraw();
+}
+void About()
+{
+	BeginBatchDraw();
+	cleardevice();
+	putimage(0, 0, &bk0);
+	ExMessage msg;
+	button(450, 50, 180, 100, "关 于", RGB(100, 100, 200), 50);
 	LOGFONT f;
 	gettextstyle(&f);
-	f.lfHeight = 18;
+	f.lfHeight = 60;
 	_tcscpy_s(f.lfFaceName, "黑体");
 	f.lfQuality = ANTIALIASED_QUALITY;
 	settextstyle(&f);
-	outtextxy(30, 670, "version 0.5.5");
-	outtextxy(670, 670, "Copyright 2024 PRXOR. All rights reserved.");
+	int _sx = 150, _sy = 300, _d = 50;
+	outtextxy(_sx, 160, "四国翻棋");
+	f.lfHeight = 40;
+	settextstyle(&f);
+	outtextxy(_sx, 230, "Four Country Military Chess (FCMC)");
+	button(_sx, 300, 260, 80, "检 查 更 新", RGB(200, 150, 0), 40);
+	f.lfHeight = 32;
+	settextstyle(&f);
+	outtextxy(_sx, _sy + 2 * _d, "Version 0.5.5");
+	string bd = "Build " + (string)__DATE__ + "  " + (string)__TIME__;
+	outtextxy(_sx, _sy + 3 * _d, bd.c_str());
+	outtextxy(_sx, _sy + 4 * _d, "Copyright 2024 PRXOR. All rights reserved.");
+	button(400, 600, 280, 80, "确   定", RGB(50, 200, 50), 40);
 	EndBatchDraw();
+	while (1)
+	{
+		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
+		{
+			if (400 <= msg.x && msg.x <= 680 && 600 <= msg.y && msg.y <= 680) return;
+		}
+	}
+	return;
 }
