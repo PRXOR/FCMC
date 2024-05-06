@@ -1407,7 +1407,6 @@ void HISTORY()
 								EndBatchDraw();
 								while (1)
 								{
-									
 									if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN )
 									{
 										bool reprint = 0;
