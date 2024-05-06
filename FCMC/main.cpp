@@ -65,7 +65,6 @@ static void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg) //新版png
 IMAGE bk0, bk2, bk4;
 static void button(int x, int y, int w, int h, const char* text,COLORREF col,int size=20)
 {
-
 	setlinecolor(WHITE);//设置框边颜色
 	setbkmode(TRANSPARENT);//设置字体背景透明
 	setfillcolor(col);//设置填充颜色
@@ -1280,7 +1279,7 @@ int Record::Step()
 	cnt_step++;
 	if (cnt_step > MAX_STEPS) return 2;
 	if (cnt_step > MAX_STEPS - REST_STEPS) return 1;
-	printf("step %d\n", ++cnt_step);
+	printf("step %d\n", cnt_step);
 	return 0;
 }
 void Record::Player_Dead(int who)
@@ -1720,7 +1719,7 @@ void About()
 	button(_sx + 280, 300, 80, 80, " ", RGB(200, 200, 200), 40);
 	f.lfHeight = 32;
 	settextstyle(&f);
-	outtextxy(_sx, _sy + 2 * _d, "Version 0.5.5");
+	outtextxy(_sx, _sy + 2 * _d, "Version 0.5.6");
 	string bd = "Build " + (string)__DATE__ + "  " + (string)__TIME__;
 	outtextxy(_sx, _sy + 3 * _d, bd.c_str());
 	outtextxy(_sx, _sy + 4 * _d, "Copyright 2024 PRXOR. All rights reserved.");
