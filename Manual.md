@@ -1,7 +1,7 @@
 # 设计说明书
-## 四国翻棋
-## 沈默 2024040129
-# 类设计
+### 四国翻棋
+### 沈默 2024040129
+## 类设计
 ### Chess结构体
 ```cpp
 struct Chess
@@ -25,12 +25,12 @@ struct Pos
 class Player
 {
 public:
-	bool live=true;
-	int initarray[_CN] = {}, deflevel[_CN] = { 10, 20, 20, 20, 21, 21, 32, 32, 32, 33, 33, 33, 34, 34, 34, 35, 35, 36, 36, 37, 37, 38, 38, 39, 40 };//旗雷炸兵---
+	bool live=true;//初始存活
+	int initarray[_CN] = {}, deflevel[_CN] = { 10,20,20,20,21,21,32,32,32,33,33,33,34,34,34,35,35,36,36,37,37,38,38,39,40 };//旗雷炸兵排连营团旅师军司
 	int defposx[_CN] = { 6,1,1,1,1,1,2,2,2,3,3,3,3,4,4,4,5,5,5,5,5,6,6,6,6 }, defposy[_CN] = { 4,1,2,3,4,5,1,3,5,1,2,4,5,1,3,5,1,2,3,4,5,1,2,3,5 };//初始位置
 	int skiptimes = 0;//跳过次数
 	void Init(int ppos);//初始化
-	Chess MyChess[_CN] = {};
+	Chess MyChess[_CN] = {};//棋子
 	vector<string> DeadChess;//死亡棋子
 } P[5];//全局最多有玩家1-4
 ```
@@ -41,16 +41,16 @@ class Record
 	int cnt_step = 0;//记录步数
 public:
 	static vector<Pos> Go_Path;//存储走棋路径
-	static int Mix(Pos P);
-	static Pos UnMix(int mixed);
-	void Record_Initialize();
-	static void Record_End(int who);
-	void Move(int lsp,int lsc,int G,int X,int Y);
-	void Show(int lsp, int lsc);
-	void Dead(int lsp, int lsc);
-	static void RS(int sound);
-	int Step();
-	void Player_Dead(int who);
+	static int Mix(Pos P);//混合坐标
+	static Pos UnMix(int mixed);//解混合坐标
+	void Record_Initialize();//初始化记录存档
+	static void Record_End(int who);//记录结束
+	void Move(int lsp, int lsc, int G, int X, int Y);//记录移动
+	void Show(int lsp, int lsc);//记录翻开
+	void Dead(int lsp, int lsc);//记录棋子死亡
+	static void RS(int sound);//记录音效
+	int Step();//记录步数，返回步数状态
+	void Player_Dead(int who);//记录玩家死亡
 };
 ```
 ### Pub类(继承Record，包含_2,_4的公共函数)
@@ -59,10 +59,10 @@ class Pub : public Record
 {
 public:
 	static map< pair<int, int>, vector< pair<int, int> > > NA;//非铁道普攻
-	static vector<int> _2ROAD[8], _4ROAD[20];//1-7,1-18
-	static string _2LEVELMAP[41], _4LEVELMAP[41];
+	static vector<int> _2ROAD[8], _4ROAD[20];//1-7,1-18,分别为双人/四人铁道
+	static string _2LEVELMAP[41], _4LEVELMAP[41];//双人/四人棋子名称
 	static pair<int, int> XY[5];//行营
-	string P_Name[5] = { "","玩家1","玩家2","玩家3","玩家4" };
+	string P_Name[5] = { "","玩家1","玩家2","玩家3","玩家4" };//玩家名称
 	static void PS(int sound);//播放音效
 	static void WIN(int who);//胜利
 	void Draw_Arrow(int x1, int y1, int x2, int y2, int L);//画箭头
@@ -72,7 +72,6 @@ public:
 	int N_KILL(Chess A, Chess B);//判断大小，返回谁死亡
 	void Go_Super();//超级模式初始化
 	static void Game_Initialize();//游戏初始化
-    //公共函数的纯虚基类
 	virtual void PRINTNOW() = 0;
 	virtual bool ROAD_GO_N(Pos F, Pos T) = 0;
 	virtual bool ROAD_GO_B(Pos F, Pos T) = 0;
@@ -93,7 +92,7 @@ class _2 : Pub
 public:
 	void PRINTNOW();//打印当前棋盘及附加图像
 	void MC();//主函数
-};
+} PLAY2, H2;//PLAY2用于游玩，H2用于双人模式的存档
 ```
 ### _4类(四人模式)
 ```cpp
@@ -112,5 +111,5 @@ public:
 	void GO_NEXT();//轮换下一步
 	void PRINTNOW();//打印当前棋盘及附加图像
 	void MC();//主函数
-};
+} PLAY4, H4;//PLAY4用于游玩，H4用于四人模式的存档
 ```

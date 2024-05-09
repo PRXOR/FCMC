@@ -28,6 +28,38 @@ HANDLE hThread;//线程句柄
 DWORD pid;//线程ID
 mutex mtx;//互斥锁
 condition_variable cv;//条件变量
+IMAGE bk0, bk2, bk4;//背景，双人棋盘，四人棋盘
+
+static void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg) //新版png（透明图片）放置函数，抄来的
+{
+	HDC dstDC = GetImageHDC(dstimg);
+	HDC srcDC = GetImageHDC(srcimg);
+	int w = srcimg->getwidth();
+	int h = srcimg->getheight();
+	BLENDFUNCTION bf = { AC_SRC_OVER, 0, 255, AC_SRC_ALPHA };
+	AlphaBlend(dstDC, x, y, w, h, srcDC, 0, 0, w, h, bf);
+}
+static bool IS_MSG(ExMessage msg, int spx, int spy, int lx, int ly) { return (spx <= msg.x && msg.x <= spx + lx && spy <= msg.y && msg.y <= spy + ly); }
+static void button(int x, int y, int w, int h, const char* text, COLORREF col, int size = 20)
+{
+	setlinecolor(WHITE);//设置框边颜色
+	setbkmode(TRANSPARENT);//设置字体背景透明
+	setfillcolor(col);//设置填充颜色
+	fillroundrect(x, y, x + w, y + h, 10, 10);//画一个按钮框
+	char text_[50] = { 0 };
+	strcpy_s(text_, text);
+	settextcolor(BLACK);
+	//	settextstyle(size, 0, "黑体");
+	LOGFONT f;
+	gettextstyle(&f);
+	f.lfHeight = size;
+	_tcscpy_s(f.lfFaceName, "黑体");
+	f.lfQuality = ANTIALIASED_QUALITY;
+	settextstyle(&f);
+	int tx = x + (w - textwidth(text_)) / 2;
+	int ty = y + (h - textheight(text_)) / 2;
+	outtextxy(tx, ty, text_);
+}
 
 struct Chess
 {
@@ -44,70 +76,38 @@ struct Pos
 class Player
 {
 public:
-	bool live=true;
-	int initarray[_CN] = {}, deflevel[_CN] = { 10, 20, 20, 20, 21, 21, 32, 32, 32, 33, 33, 33, 34, 34, 34, 35, 35, 36, 36, 37, 37, 38, 38, 39, 40 };//旗雷炸兵---
+	bool live=true;//初始存活
+	int initarray[_CN] = {}, deflevel[_CN] = { 10,20,20,20,21,21,32,32,32,33,33,33,34,34,34,35,35,36,36,37,37,38,38,39,40 };//旗雷炸兵排连营团旅师军司
 	int defposx[_CN] = { 6,1,1,1,1,1,2,2,2,3,3,3,3,4,4,4,5,5,5,5,5,6,6,6,6 }, defposy[_CN] = { 4,1,2,3,4,5,1,3,5,1,2,4,5,1,3,5,1,2,3,4,5,1,2,3,5 };//初始位置
 	int skiptimes = 0;//跳过次数
 	void Init(int ppos);//初始化
-	Chess MyChess[_CN] = {};
+	Chess MyChess[_CN] = {};//棋子
 	vector<string> DeadChess;//死亡棋子
 } P[5];
-static void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg) //新版png（透明图片）放置函数
-{
-	HDC dstDC = GetImageHDC(dstimg);
-	HDC srcDC = GetImageHDC(srcimg);
-	int w = srcimg->getwidth();
-	int h = srcimg->getheight();
-	BLENDFUNCTION bf = { AC_SRC_OVER, 0, 255, AC_SRC_ALPHA };
-	AlphaBlend(dstDC, x, y, w, h, srcDC, 0, 0, w, h, bf);
-}
-IMAGE bk0, bk2, bk4;//背景，双人棋盘，四人棋盘
-static bool IS_MSG(ExMessage msg, int spx, int spy, int lx, int ly) { return (spx <= msg.x && msg.x <= spx + lx && spy <= msg.y && msg.y <= spy + ly); }
-static void button(int x, int y, int w, int h, const char* text,COLORREF col,int size=20)
-{
-	setlinecolor(WHITE);//设置框边颜色
-	setbkmode(TRANSPARENT);//设置字体背景透明
-	setfillcolor(col);//设置填充颜色
-	fillroundrect(x, y, x + w, y + h, 10, 10);//画一个按钮框
-	char text_[50] = { 0 };
-	strcpy_s(text_, text);
-	settextcolor(BLACK);
-//	settextstyle(size, 0, "黑体");
-	LOGFONT f;
-	gettextstyle(&f);
-	f.lfHeight = size;
-	_tcscpy_s(f.lfFaceName, "黑体");
-	f.lfQuality = ANTIALIASED_QUALITY;
-	settextstyle(&f);
-	int tx = x + (w - textwidth(text_)) / 2;
-	int ty = y + (h - textheight(text_)) / 2;
-	outtextxy(tx, ty, text_);
-}
-void Setting();
 class Record
 {
 	int cnt_step = 0;//记录步数
 public:
 	static vector<Pos> Go_Path;//存储走棋路径
-	static int Mix(Pos P);
-	static Pos UnMix(int mixed);
-	void Record_Initialize();
-	static void Record_End(int who);
-	void Move(int lsp,int lsc,int G,int X,int Y);
-	void Show(int lsp, int lsc);
-	void Dead(int lsp, int lsc);
-	static void RS(int sound);
-	int Step();
-	void Player_Dead(int who);
+	static int Mix(Pos P);//混合坐标
+	static Pos UnMix(int mixed);//解混合坐标
+	void Record_Initialize();//初始化记录存档
+	static void Record_End(int who);//记录结束
+	void Move(int lsp, int lsc, int G, int X, int Y);//记录移动
+	void Show(int lsp, int lsc);//记录翻开
+	void Dead(int lsp, int lsc);//记录棋子死亡
+	static void RS(int sound);//记录音效
+	int Step();//记录步数，返回步数状态
+	void Player_Dead(int who);//记录玩家死亡
 };
 class Pub : public Record
 {
 public:
 	static map< pair<int, int>, vector< pair<int, int> > > NA;//非铁道普攻
-	static vector<int> _2ROAD[8], _4ROAD[20];//1-7,1-18
-	static string _2LEVELMAP[41], _4LEVELMAP[41];
+	static vector<int> _2ROAD[8], _4ROAD[20];//1-7,1-18,分别为双人/四人铁道
+	static string _2LEVELMAP[41], _4LEVELMAP[41];//双人/四人棋子名称
 	static pair<int, int> XY[5];//行营
-	string P_Name[5] = { "","玩家1","玩家2","玩家3","玩家4" };
+	string P_Name[5] = { "","玩家1","玩家2","玩家3","玩家4" };//玩家名称
 	static void PS(int sound);//播放音效
 	static void WIN(int who);//胜利
 	void Draw_Arrow(int x1, int y1, int x2, int y2, int L);//画箭头
@@ -123,12 +123,6 @@ public:
 	virtual bool GOABLE(Chess A, Chess B, bool att) = 0;
 	virtual void MC() = 0;
 };
-vector<Pos> Record::Go_Path = {};
-map< pair<int, int>, vector< pair<int, int> > > Pub::NA = {};
-vector<int> Pub::_2ROAD[8] = {}, Pub::_4ROAD[20] = {};
-string Pub::_2LEVELMAP[41] = {};
-string Pub::_4LEVELMAP[41] = {};
-pair<int, int> Pub::XY[5] = {};
 class _2 : Pub
 {
 	int ChessX = 60, ChessY = 27;//棋子的长宽
@@ -157,17 +151,18 @@ public:
 	void PRINTNOW();//打印当前棋盘及附加图像
 	void MC();//主函数
 } PLAY4, H4;
-static void Start_Play()//背景音乐播放函数
-{
-	unique_lock<mutex> lck(mtx);//获得条件锁，释放互斥锁（在本程序中无用）
-	mciSendString("open Resources/BGM.mp3 alias BGM type mpegvideo", 0, 0, 0);
-	mciSendString("play BGM repeat", 0, 0, 0);
-	cv.wait(lck);//等待条件锁信号
-	mciSendString("close BGM", 0, 0, 0);
-}
+static void Start_Play();//背景音乐播放函数
+
+void Setting();//设置
 void HISTORY();//复盘函数
 void About();//关于函数
 void PRINT_main();//打印主界面
+vector<Pos> Record::Go_Path = {};
+map< pair<int, int>, vector< pair<int, int> > > Pub::NA = {};
+vector<int> Pub::_2ROAD[8] = {}, Pub::_4ROAD[20] = {};
+string Pub::_2LEVELMAP[41] = {};
+string Pub::_4LEVELMAP[41] = {};
+pair<int, int> Pub::XY[5] = {};
 
 int main()
 {
@@ -337,6 +332,14 @@ void Pub::Game_Initialize()
 	_4ROAD[16].push_back(455), _4ROAD[16].push_back(445), _4ROAD[16].push_back(435), _4ROAD[16].push_back(425), _4ROAD[16].push_back(415), _4ROAD[16].push_back(111), _4ROAD[16].push_back(121), _4ROAD[16].push_back(131), _4ROAD[16].push_back(141), _4ROAD[16].push_back(151);
 	_4ROAD[17].push_back(413), _4ROAD[17].push_back(30), _4ROAD[17].push_back(40), _4ROAD[17].push_back(50), _4ROAD[17].push_back(213);
 	_4ROAD[18].push_back(113), _4ROAD[18].push_back(70), _4ROAD[18].push_back(40), _4ROAD[18].push_back(10), _4ROAD[18].push_back(313);
+}
+void Start_Play()
+{
+	unique_lock<mutex> lck(mtx);//获得条件锁，释放互斥锁（在本程序中无用）
+	mciSendString("open Resources/BGM.mp3 alias BGM type mpegvideo", 0, 0, 0);
+	mciSendString("play BGM repeat", 0, 0, 0);
+	cv.wait(lck);//等待条件锁信号
+	mciSendString("close BGM", 0, 0, 0);
 }
 void Player::Init(int ppos)
 {
