@@ -43,7 +43,6 @@ struct Pos
 };
 class Player
 {
-private:
 public:
 	bool live=true;
 	int initarray[_CN] = {}, deflevel[_CN] = { 10, 20, 20, 20, 21, 21, 32, 32, 32, 33, 33, 33, 34, 34, 34, 35, 35, 36, 36, 37, 37, 38, 38, 39, 40 };//旗雷炸兵---
