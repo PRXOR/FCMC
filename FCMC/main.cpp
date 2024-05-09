@@ -20,9 +20,9 @@
 #pragma comment(lib, "MSIMG32.LIB")
 #pragma comment( linker, "/subsystem:\"windows\" /entry:\"mainCRTStartup\"" )
 using namespace std;
-const int _CN = 25;
+const int _CN = 25;//棋子数量
 int np, tp, Tp, MAX_STEPS, MAX_JUMPS, REST_STEPS, STEPS_STATUS = 0;
-bool supermode, historymode, showmode, AutoUpdate, DO_REC, PLAY_BGM, PLAY_SOUND;// , once_played = 0;
+bool supermode, historymode, showmode, AutoUpdate, DO_REC, PLAY_BGM, PLAY_SOUND;
 FILE* stream;
 HANDLE hThread;
 DWORD pid;
@@ -38,7 +38,7 @@ struct Chess
 };
 struct Pos
 {
-	int g, x, y;
+	int g, x, y;//区块，横坐标，纵坐标
 	Pos(int _g, int _x, int _y):g(_g),x(_x),y(_y){}
 };
 class Player
@@ -47,13 +47,13 @@ private:
 public:
 	bool live=true;
 	int initarray[_CN] = {}, deflevel[_CN] = { 10, 20, 20, 20, 21, 21, 32, 32, 32, 33, 33, 33, 34, 34, 34, 35, 35, 36, 36, 37, 37, 38, 38, 39, 40 };//旗雷炸兵---
-	int defposx[_CN] = {6,1,1,1,1,1,2,2,2,3,3,3,3,4,4,4,5,5,5,5,5,6,6,6,6}, defposy[_CN] = {4,1,2,3,4,5,1,3,5,1,2,4,5,1,3,5,1,2,3,4,5,1,2,3,5};
-	int skiptimes = 0;
-	void Init(int ppos);
+	int defposx[_CN] = { 6,1,1,1,1,1,2,2,2,3,3,3,3,4,4,4,5,5,5,5,5,6,6,6,6 }, defposy[_CN] = { 4,1,2,3,4,5,1,3,5,1,2,4,5,1,3,5,1,2,3,4,5,1,2,3,5 };//初始位置
+	int skiptimes = 0;//跳过次数
+	void Init(int ppos);//初始化
 	Chess MyChess[_CN] = {};
-	vector<string> DeadChess;
+	vector<string> DeadChess;//死亡棋子
 } P[5];
-static void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg) //新版png
+static void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg) //新版png（透明图片）放置函数
 {
 	HDC dstDC = GetImageHDC(dstimg);
 	HDC srcDC = GetImageHDC(srcimg);
@@ -62,7 +62,7 @@ static void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg) //新版png
 	BLENDFUNCTION bf = { AC_SRC_OVER, 0, 255, AC_SRC_ALPHA };
 	AlphaBlend(dstDC, x, y, w, h, srcDC, 0, 0, w, h, bf);
 }
-IMAGE bk0, bk2, bk4;
+IMAGE bk0, bk2, bk4;//背景，双人棋盘，四人棋盘
 static void button(int x, int y, int w, int h, const char* text,COLORREF col,int size=20)
 {
 	setlinecolor(WHITE);//设置框边颜色
@@ -86,9 +86,9 @@ static void button(int x, int y, int w, int h, const char* text,COLORREF col,int
 void Setting();
 class Record
 {
-	int cnt_step = 0;
+	int cnt_step = 0;//记录步数
 public:
-	static vector<Pos> Go_Path;
+	static vector<Pos> Go_Path;//存储走棋路径
 	int Mix(Pos P);
 	Pos UnMix(int mixed);
 	void Record_Initialize();
@@ -109,15 +109,15 @@ public:
 	static pair<int, int> XY[5];//行营
 	string P_Name[5] = { "","玩家1","玩家2","玩家3","玩家4" };
 	bool IS_MSG(ExMessage msg, int spx, int spy, int lx, int ly) { return (spx <= msg.x && msg.x <= spx + lx && spy <= msg.y && msg.y <= spy + ly); }
-	void PS(int sound);
-	void WIN(int who);
-	void Draw_Arrow(int x1, int y1, int x2, int y2, int L);
-	bool IS_VOID(int g, int x, int y);
-	bool IS_DEAD(int p);
-	bool NORMAL_GO(Chess A, Chess B);
-	int N_KILL(Chess A, Chess B);
-	void Go_Super();
-	static void Game_Initialize();
+	void PS(int sound);//播放音效
+	void WIN(int who);//胜利
+	void Draw_Arrow(int x1, int y1, int x2, int y2, int L);//画箭头
+	bool IS_VOID(int g, int x, int y);//判断是否为空
+	bool IS_DEAD(int p);//判断玩家是否死亡
+	bool NORMAL_GO(Chess A, Chess B);//普通移动
+	int N_KILL(Chess A, Chess B);//判断大小，返回谁死亡
+	void Go_Super();//超级模式初始化
+	static void Game_Initialize();//游戏初始化
 } FH;
 vector<Pos> Record::Go_Path = {};
 map< pair<int, int>, vector< pair<int, int> > > Pub::NA = {};
@@ -125,42 +125,45 @@ vector<int> Pub::_2ROAD[8] = {}, Pub::_4ROAD[20] = {};
 string Pub::_2LEVELMAP[41] = {};
 string Pub::_4LEVELMAP[41] = {};
 pair<int, int> Pub::XY[5] = {};
-class _2 : public Pub
+class _2 : Pub
 {
 	int ChessX = 60, ChessY = 27;//棋子的长宽
-	int _2startposx[3] = { 0,20,480 }, _2startposy[3] = { 0,424,274 }, _2divx = 115, _2divy = 51;
-	int trans[3] = { 0,1,-1 };
-	bool ROAD_GO_N(Pos F,Pos T),ROAD_GO_B(Pos F,Pos T);
-	bool GOABLE(Chess A, Chess B, bool att);
+	int _2startposx[3] = { 0,20,480 }, _2startposy[3] = { 0,424,274 }, _2divx = 115, _2divy = 51;//绘图相关棋盘参数
+	int trans[3] = { 0,1,-1 };//转换坐标
+	bool ROAD_GO_N(Pos F, Pos T);//常规铁道移动
+	bool ROAD_GO_B(Pos F, Pos T);//工兵铁道移动
+	bool GOABLE(Chess A, Chess B, bool att);//判断是否可移动
 public:
-	void PRINTNOW();
-	void MC();
+	void PRINTNOW();//打印当前棋盘及附加图像
+	void MC();//主函数
 } PLAY2, H2;
-class _4 : public Pub
+class _4 : Pub
 {
+	//绘图相关棋盘参数
 	int stpx[5] = { 0,442,651,610,400 }, stpy[5] = { 0,472,430,220,262 }, L = 27, D = 42, DD = 30;
 	int ppx[5] = { 0,651,651,190,190 }, ppy[5] = { 0,472,10,10,472 };
 	COLORREF MyCol[5] = { RGB(100,100,100),RGB(216,108,0),RGB(145,63,165),RGB(112,156,0),RGB(39,104,160) };
-	int transxx[5] = { 0,0,1,0,-1 }, transxy[5] = { 0,1,0,-1,0 }, transyx[5] = { 0,1,0,-1,0 }, transyy[5] = { 0,0,-1,0,1 };
-	bool TEAM_WIN();
-	bool ROAD_GO_N(Pos F, Pos T), ROAD_GO_B(Pos F, Pos T);
-	bool GOABLE(Chess A, Chess B, bool att);
+	int transxx[5] = { 0,0,1,0,-1 }, transxy[5] = { 0,1,0,-1,0 }, transyx[5] = { 0,1,0,-1,0 }, transyy[5] = { 0,0,-1,0,1 };//转换坐标
+	bool TEAM_WIN();//判断队伍胜利
+	bool ROAD_GO_N(Pos F, Pos T);//常规铁道移动
+	bool ROAD_GO_B(Pos F, Pos T);//工兵铁道移动
+	bool GOABLE(Chess A, Chess B, bool att);//判断是否可移动
 public:
-	void GO_NEXT();
-	void PRINTNOW();
-	void MC();
+	void GO_NEXT();//轮换下一步
+	void PRINTNOW();//打印当前棋盘及附加图像
+	void MC();//主函数
 } PLAY4, H4;
-static void Start_Play()
+static void Start_Play()//背景音乐播放函数
 {
-	unique_lock<mutex> lck(mtx);
+	unique_lock<mutex> lck(mtx);//获得条件锁，释放互斥锁（在本程序中无用）
 	mciSendString("open Resources/BGM.mp3 alias BGM type mpegvideo", 0, 0, 0);
 	mciSendString("play BGM repeat", 0, 0, 0);
-	cv.wait(lck);
+	cv.wait(lck);//等待条件锁信号
 	mciSendString("close BGM", 0, 0, 0);
 }
-void HISTORY();
-void About();
-void PRINT_main();
+void HISTORY();//复盘函数
+void About();//关于函数
+void PRINT_main();//打印主界面
 
 int main()
 {
@@ -232,7 +235,7 @@ int main()
 				break;
 			case 6:
 				button(_sx + _dx * 5, _sy, _x, _y, "退出游戏", RGB(100, 100, 100), 25);
-				freopen_s(&stream, "settings.config", "w", stdout);
+				freopen_s(&stream, "settings.config", "w", stdout);//保存游戏设置
 				string sts[7] = { "DO_REC","AutoUpdate","PLAY_BGM","PLAY_SOUND","MAX_STEPS","MAX_JUMPS","REST_STEPS" };
 				bool* op[4] = { &DO_REC, &AutoUpdate, &PLAY_BGM, &PLAY_SOUND };
 				int* num[3] = { &MAX_STEPS, &MAX_JUMPS, &REST_STEPS };
@@ -248,9 +251,9 @@ int main()
 }
 void Pub::Game_Initialize()
 {
-	srand(uint32_t(time(NULL)));
-	DO_REC = 1, AutoUpdate = 0, MAX_STEPS = 400, MAX_JUMPS = 5, REST_STEPS = 40;
-	freopen_s(&stream, "settings.config", "r", stdin);
+	srand(uint32_t(time(NULL)));//初始化随机数种子
+	DO_REC = 1, AutoUpdate = 0, MAX_STEPS = 400, MAX_JUMPS = 5, REST_STEPS = 40;//默认游戏设置
+	freopen_s(&stream, "settings.config", "r", stdin);//读取游戏设置
 	string key;
 	while (cin >> key)
 	{
@@ -266,13 +269,14 @@ void Pub::Game_Initialize()
 	cin.clear();
 	freopen_s(&stream, "CON", "r", stdin);
 	if (DO_REC) CreateDirectory("Records", NULL);
-	if (PLAY_BGM) hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)Start_Play, NULL, 0, &pid);
-	loadimage(&bk0, _T("Resources/background0.png"), 1080, 720);
-	loadimage(&bk2, _T("Resources/background3.jpg"), 560, 720);
-	loadimage(&bk4, _T("Resources/background6.png"), 720, 720);
-	XY[0] = make_pair(2, 2), XY[1] = make_pair(2, 4), XY[2] = make_pair(3, 3), XY[3] = make_pair(4, 2), XY[4] = make_pair(4, 4);
-	_2LEVELMAP[10] = "军旗", _2LEVELMAP[20] = "地雷", _2LEVELMAP[21] = "炸弹", _2LEVELMAP[32] = "工兵", _2LEVELMAP[33] = "排长", _2LEVELMAP[34] = "连长", _2LEVELMAP[35] = "营长", _2LEVELMAP[36] = "团长", _2LEVELMAP[37] = "旅长", _2LEVELMAP[38] = "师长", _2LEVELMAP[39] = "军长", _2LEVELMAP[40] = "司令";
-	_4LEVELMAP[10] = "旗", _4LEVELMAP[20] = "雷", _4LEVELMAP[21] = "炸", _4LEVELMAP[32] = "兵", _4LEVELMAP[33] = "排", _4LEVELMAP[34] = "连", _4LEVELMAP[35] = "营", _4LEVELMAP[36] = "团", _4LEVELMAP[37] = "旅", _4LEVELMAP[38] = "师", _4LEVELMAP[39] = "军", _4LEVELMAP[40] = "司";
+	if (PLAY_BGM) hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)Start_Play, NULL, 0, &pid);//播放背景音乐
+	loadimage(&bk0, _T("Resources/background0.png"), 1080, 720);//加载背景图片
+	loadimage(&bk2, _T("Resources/background3.jpg"), 560, 720);//加载双人棋盘图片
+	loadimage(&bk4, _T("Resources/background6.png"), 720, 720);//加载四人棋盘图片
+	XY[0] = make_pair(2, 2), XY[1] = make_pair(2, 4), XY[2] = make_pair(3, 3), XY[3] = make_pair(4, 2), XY[4] = make_pair(4, 4);//行营坐标
+	_2LEVELMAP[10] = "军旗", _2LEVELMAP[20] = "地雷", _2LEVELMAP[21] = "炸弹", _2LEVELMAP[32] = "工兵", _2LEVELMAP[33] = "排长", _2LEVELMAP[34] = "连长", _2LEVELMAP[35] = "营长", _2LEVELMAP[36] = "团长", _2LEVELMAP[37] = "旅长", _2LEVELMAP[38] = "师长", _2LEVELMAP[39] = "军长", _2LEVELMAP[40] = "司令";//两字棋子名称
+	_4LEVELMAP[10] = "旗", _4LEVELMAP[20] = "雷", _4LEVELMAP[21] = "炸", _4LEVELMAP[32] = "兵", _4LEVELMAP[33] = "排", _4LEVELMAP[34] = "连", _4LEVELMAP[35] = "营", _4LEVELMAP[36] = "团", _4LEVELMAP[37] = "旅", _4LEVELMAP[38] = "师", _4LEVELMAP[39] = "军", _4LEVELMAP[40] = "司";//四字棋子名称
+	//初始化非铁道普攻
 	NA[make_pair(2, 2)].push_back(make_pair(1, 1)), NA[make_pair(2, 2)].push_back(make_pair(1, 2)), NA[make_pair(2, 2)].push_back(make_pair(1, 3)), NA[make_pair(2, 2)].push_back(make_pair(2, 1)), NA[make_pair(2, 2)].push_back(make_pair(2, 3)), NA[make_pair(2, 2)].push_back(make_pair(3, 1)), NA[make_pair(2, 2)].push_back(make_pair(3, 2)), NA[make_pair(2, 2)].push_back(make_pair(3, 3));
 	NA[make_pair(2, 3)].push_back(make_pair(1, 3)), NA[make_pair(2, 3)].push_back(make_pair(2, 2)), NA[make_pair(2, 3)].push_back(make_pair(2, 4)), NA[make_pair(2, 3)].push_back(make_pair(3, 3));
 	NA[make_pair(2, 4)].push_back(make_pair(1, 3)), NA[make_pair(2, 4)].push_back(make_pair(1, 4)), NA[make_pair(2, 4)].push_back(make_pair(1, 5)), NA[make_pair(2, 4)].push_back(make_pair(2, 3)), NA[make_pair(2, 4)].push_back(make_pair(2, 5)), NA[make_pair(2, 4)].push_back(make_pair(3, 3)), NA[make_pair(2, 4)].push_back(make_pair(3, 4)), NA[make_pair(2, 4)].push_back(make_pair(3, 5));
@@ -302,6 +306,7 @@ void Pub::Game_Initialize()
 	NA[make_pair(5, 3)].push_back(make_pair(4, 2)), NA[make_pair(5, 3)].push_back(make_pair(4, 3)), NA[make_pair(5, 3)].push_back(make_pair(4, 4)), NA[make_pair(5, 3)].push_back(make_pair(6, 3));
 	NA[make_pair(5, 4)].push_back(make_pair(4, 4)), NA[make_pair(5, 4)].push_back(make_pair(6, 4));
 	NA[make_pair(5, 5)].push_back(make_pair(4, 4)), NA[make_pair(5, 5)].push_back(make_pair(6, 5));
+	//初始化双人铁道
 	_2ROAD[1].push_back(151), _2ROAD[1].push_back(141), _2ROAD[1].push_back(131), _2ROAD[1].push_back(121), _2ROAD[1].push_back(111), _2ROAD[1].push_back(215), _2ROAD[1].push_back(225), _2ROAD[1].push_back(235), _2ROAD[1].push_back(245), _2ROAD[1].push_back(255);
 	_2ROAD[2].push_back(251), _2ROAD[2].push_back(241), _2ROAD[2].push_back(231), _2ROAD[2].push_back(221), _2ROAD[2].push_back(211), _2ROAD[2].push_back(115), _2ROAD[2].push_back(125), _2ROAD[2].push_back(135), _2ROAD[2].push_back(145), _2ROAD[2].push_back(155);
 	_2ROAD[3].push_back(151), _2ROAD[3].push_back(152), _2ROAD[3].push_back(153), _2ROAD[3].push_back(154), _2ROAD[3].push_back(155);
@@ -309,6 +314,7 @@ void Pub::Game_Initialize()
 	_2ROAD[5].push_back(111), _2ROAD[5].push_back(112), _2ROAD[5].push_back(113), _2ROAD[5].push_back(114), _2ROAD[5].push_back(115);
 	_2ROAD[6].push_back(211), _2ROAD[6].push_back(212), _2ROAD[6].push_back(213), _2ROAD[6].push_back(214), _2ROAD[6].push_back(215);
 	_2ROAD[7].push_back(113), _2ROAD[7].push_back(213);
+	//初始化四人铁道
 	_4ROAD[1].push_back(151), _4ROAD[1].push_back(152), _4ROAD[1].push_back(153), _4ROAD[1].push_back(154), _4ROAD[1].push_back(155);
 	_4ROAD[2].push_back(251), _4ROAD[2].push_back(252), _4ROAD[2].push_back(253), _4ROAD[2].push_back(254), _4ROAD[2].push_back(255);
 	_4ROAD[3].push_back(351), _4ROAD[3].push_back(352), _4ROAD[3].push_back(353), _4ROAD[3].push_back(354), _4ROAD[3].push_back(355);
@@ -330,13 +336,13 @@ void Pub::Game_Initialize()
 }
 void Player::Init(int ppos)
 {
-	live = 1, skiptimes = 0;
-	DeadChess.clear();
+	live = 1, skiptimes = 0;//清空棋子状态
+	DeadChess.clear();//清空死亡棋子
 	for (int i = 0; i < _CN; i++) initarray[i] = i;
 	random_device rd;
-	mt19937 gg(rd());
-	shuffle(initarray + 1, initarray + _CN, gg);
-	for (int i = 0; i < _CN; i++) MyChess[i] = Chess(deflevel[initarray[i]], ppos, defposx[i], defposy[i]);
+	mt19937 gg(rd());//随机数引擎
+	shuffle(initarray + 1, initarray + _CN, gg);//随机打乱棋子顺序
+	for (int i = 0; i < _CN; i++) MyChess[i] = Chess(deflevel[initarray[i]], ppos, defposx[i], defposy[i]);//放入每个棋子
 }
 int Record::Mix(Pos P)
 {
@@ -346,14 +352,14 @@ Pos Record::UnMix(int mixed)
 {
 	return Pos(mixed / 100, (mixed / 10) % 10, mixed % 10);
 }
-inline void Pub::Draw_Arrow(int x1, int y1, int x2, int y2, int L)
+inline void Pub::Draw_Arrow(int x1, int y1, int x2, int y2, int L)//画路径箭头
 {
 	int mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
 	double nx = (double(x2) - double(x1)) / (sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1))), ny = (double(y2) - double(y1)) / (sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1)));
 	POINT pa[6] = { { int(mx + L * nx),int(my + L * ny) },{int(mx - L * ny),int(my + L * nx)},{int(mx - L * (nx + ny)),int(my + L * (nx - ny))},{int(mx),int(my)},{int(mx + L * (ny - nx)),int(my - L * (ny + nx))},{int(mx + L * ny),int(my - L * nx)} };
 	fillpolygon(pa, 6);
 }
-bool Pub::IS_VOID(int g, int x, int y)
+bool Pub::IS_VOID(int g, int x, int y)//判断某个位置是否为空
 {
 	for (int i = 1; i <= Tp; i++)
 	{
@@ -366,9 +372,9 @@ bool Pub::IS_VOID(int g, int x, int y)
 	}
 	return true;
 }
-bool Pub::IS_DEAD(int p)
+bool Pub::IS_DEAD(int p)//判断某个玩家是否全军覆没
 {
-	for (int i = 0; i < _CN; i++)
+	for (int i = 0; i < _CN; i++)//包括军旗和翻开的地雷和进入大本营的棋子
 		if (P[p].MyChess[i].live != 0 && P[p].MyChess[i].level != 10 && !(P[p].MyChess[i].level == 20 && P[p].MyChess[i].cflag == 2) && !(P[p].MyChess[i].cpx == 6 && P[p].MyChess[i].cpy == 4)) return false;
 	return true;
 }
@@ -378,7 +384,7 @@ bool Pub::NORMAL_GO(Chess A, Chess B)
 	pair<int, int> pa = make_pair(A.cpx, A.cpy), pb = make_pair(B.cpx, B.cpy);
 	if (A.cpg == B.cpg && NA.count(pa) > 0)
 	{
-		for (vector<pair<int, int> >::iterator i = NA[pa].begin(); i != NA[pa].end(); i++)
+		for (vector<pair<int, int> >::iterator i = NA[pa].begin(); i != NA[pa].end(); i++)//遍历A的可走位置
 		{
 			if (*i == pb)
 			{
@@ -394,12 +400,12 @@ bool Pub::NORMAL_GO(Chess A, Chess B)
 }
 void Pub::PS(int sound)
 {
-	if (historymode == 0 && sound != 5) RS(sound);
+	if (historymode == 0 && sound != 5) RS(sound);//存档模式和结束音效不记录
 	if (!PLAY_SOUND) return;
 	switch (sound)
 	{
 	case 0:
-		PlaySound("Resources/start.wav", NULL, SND_ASYNC);
+		PlaySound("Resources/start.wav", NULL, SND_ASYNC);//异步播放
 		break;
 	case 1:
 		PlaySound("Resources/move.wav", NULL, SND_ASYNC);
@@ -421,7 +427,7 @@ void Pub::PS(int sound)
 		break;
 	}
 }
-void Pub::WIN(int who)
+void Pub::WIN(int who)//打印胜利信息
 {
 	if (historymode == 0) Record_End(who);
 	string Winner[5] = { "对局结束！","玩家1获胜！","玩家2获胜！","玩家1 3获胜！","玩家2 4获胜！" };
@@ -445,8 +451,8 @@ int Pub::N_KILL(Chess c1, Chess c2)
 	}
 	else if (c1.level == 20)
 	{
-		if (c2.level == 32) return 2;
-		else return 1;
+		if (c2.level == 32) return 2;//啃雷
+		else return 1;//撞雷
 	}
 	else
 	{
@@ -457,8 +463,8 @@ int Pub::N_KILL(Chess c1, Chess c2)
 }
 void Pub::Go_Super()
 {
-	int N = rand() % 16 + 4;
-	printf("N %d\nShow\n", N);
+	int N = rand() % 16 + 4;//随机翻开棋子数
+	printf("N %d\nshow\n", N);
 	for (int i = 1; i <= Tp; i++)
 	{
 		int re = N, rj = 0;
@@ -480,7 +486,7 @@ void _2::PRINTNOW()
 	int lrx = 0, lry = 0, rx = 0, ry = 0;
 	setcolor(RGB(80,20,20));
 	setfillcolor(RED);
-	for (int i = 0; i < Go_Path.size(); i++)
+	for (int i = 0; i < Go_Path.size(); i++)//画路径
 	{
 		Pos p = Go_Path[i];
 		rx = _2startposx[p.g] + _2divx * (p.y - 1) * trans[p.g]  + 30, ry = _2startposy[p.g] + _2divy * (p.x - 1) * trans[p.g] + 13;
@@ -495,7 +501,7 @@ void _2::PRINTNOW()
 		}
 		lrx = rx, lry = ry;
 	}
-	for (int i = 1; i <= 2; i++)
+	for (int i = 1; i <= 2; i++)//画每个活棋
 	{
 		for (int j = 0; j < _CN; j++)
 		{
@@ -506,7 +512,7 @@ void _2::PRINTNOW()
 			button(_2startposx[tmp.cpg] + _2divx * (tmp.cpy - 1) * trans[tmp.cpg], _2startposy[tmp.cpg] + _2divy * (tmp.cpx - 1) * trans[tmp.cpg], ChessX, ChessY, tname, MyCol[i]);//注意cpxcpy与_2系列横纵坐标定义相反
 		}
 	}
-	if (np == 1)
+	if (np == 1)//画玩家操作
 	{
 		button(600, 450, 200, 200, "玩家1(行动)", MyCol[1], 30), button(600, 65, 200, 200, "玩家2", MyCol[2], 30);
 		if (historymode == 0) button(710, 580, 60, 50, "跳过", MyCol[0]), button(630, 580, 60, 50, "投降", MyCol[0]);
@@ -516,7 +522,7 @@ void _2::PRINTNOW()
 		button(600, 450, 200, 200, "玩家1", MyCol[1], 30), button(600, 65, 200, 200, "玩家2(行动)", MyCol[2], 30);
 		if (historymode == 0) button(630, 195, 60, 50, "投降", MyCol[0]), button(710, 195, 60, 50, "跳过", MyCol[0]);
 	}
-	int cnt = 0, d = 40;
+	int cnt = 0, d = 40;//画死亡棋子
 	for (vector<string>::iterator i = P[1].DeadChess.begin(); i != P[1].DeadChess.end(); i++)
 	{
 		char tmp[20];
@@ -538,7 +544,7 @@ void _2::PRINTNOW()
 }
 bool _2::ROAD_GO_N(Pos F, Pos T)
 {
-	int f = Mix(F), t = Mix(T);
+	int f = Mix(F), t = Mix(T);//转换为数字以符合ROAD数组
 	for (int r = 1; r <= 7; r++)
 	{
 		int pick = 0, pi = 0;
@@ -548,7 +554,7 @@ bool _2::ROAD_GO_N(Pos F, Pos T)
 			{
 				if (pick)
 				{
-					Go_Path.clear();
+					Go_Path.clear();//清空路径并记录新的路径
 					if (_2ROAD[r][i] == t)
 					{
 						for (int ii = pi; ii <= i; ii++) Go_Path.push_back(UnMix(_2ROAD[r][ii]));
@@ -562,7 +568,7 @@ bool _2::ROAD_GO_N(Pos F, Pos T)
 				pick = 1, pi = i;
 				continue;
 			}
-			if (pick && !IS_VOID(_2ROAD[r][i] / 100, (_2ROAD[r][i] / 10) % 10, _2ROAD[r][i] % 10)) break;
+			if (pick && !IS_VOID(_2ROAD[r][i] / 100, (_2ROAD[r][i] / 10) % 10, _2ROAD[r][i] % 10)) break;//遇到非空位置表明此路不通
 		}
 	}
 	return false;
@@ -570,8 +576,8 @@ bool _2::ROAD_GO_N(Pos F, Pos T)
 bool _2::ROAD_GO_B(Pos F, Pos T)
 {
 	queue<int> q;
-	bool vis[501];
-	int pre[501];
+	bool vis[501];//标记数组
+	int pre[501];//前驱指向数组
 	while (!q.empty()) q.pop();
 	memset(vis, 0, sizeof(vis));
 	memset(pre, 0x3f, sizeof(pre));
@@ -582,7 +588,7 @@ bool _2::ROAD_GO_B(Pos F, Pos T)
 	{
 		mn = q.front();
 		q.pop();
-		if (mn == Mix(T))
+		if (mn == Mix(T))//找到了
 		{
 			Go_Path.clear();
 			while (mn != 0x3f3f3f3f)
@@ -593,12 +599,12 @@ bool _2::ROAD_GO_B(Pos F, Pos T)
 			reverse(Go_Path.begin(), Go_Path.end());
 			return true;
 		}
-		if (!IS_VOID(mn / 100, (mn / 10) % 10, mn % 10) && (mn != Mix(F))) continue;
+		if (!IS_VOID(mn / 100, (mn / 10) % 10, mn % 10) && (mn != Mix(F))) continue;//此路不通
 		for (int i = 1; i <= 7; i++)
 		{
 			for (uint64_t j = 0; j < _2ROAD[i].size(); j++)
 			{
-				if (mn == _2ROAD[i][j])
+				if (mn == _2ROAD[i][j])//每条路上去找
 				{
 					if (j > 0 && vis[_2ROAD[i][j - 1]] == 0) vis[_2ROAD[i][j - 1]] = true, q.push(_2ROAD[i][j - 1]), pre[_2ROAD[i][j - 1]] = mn;
 					if (j < _2ROAD[i].size() - 1 && vis[_2ROAD[i][j + 1]] == 0) vis[_2ROAD[i][j + 1]] = true, q.push(_2ROAD[i][j + 1]), pre[_2ROAD[i][j + 1]] = mn;
@@ -608,17 +614,17 @@ bool _2::ROAD_GO_B(Pos F, Pos T)
 	}
 	return false;
 }
-bool _2::GOABLE(Chess A, Chess B, bool att)//att=1为攻击，=0为走动
+bool _2::GOABLE(Chess A, Chess B, bool att)//att=1为攻击，att=0为走动
 {
-	for (int i = 0; att == 1 && i < 5; i++) if (make_pair(B.cpx, B.cpy) == XY[i]) return false;
+	for (int i = 0; att == 1 && i < 5; i++) if (make_pair(B.cpx, B.cpy) == XY[i]) return false;//不得攻击行营
 	if (NORMAL_GO(A, B)) return true;
 	if (A.level == 32 && A.cflag == 2) return ROAD_GO_B(Pos(A.cpg, A.cpx, A.cpy), Pos(B.cpg, B.cpx, B.cpy));
 	else return ROAD_GO_N(Pos(A.cpg, A.cpx, A.cpy), Pos(B.cpg, B.cpx, B.cpy));
 }
 void _2::MC()
 {
-	P[1].Init(1), P[2].Init(2);
-	Record_Initialize();
+	P[1].Init(1), P[2].Init(2);//初始化玩家
+	Record_Initialize();//初始化记录
 	if (supermode) Go_Super();
 	Go_Path.clear();
 	ExMessage msg;
@@ -630,17 +636,17 @@ void _2::MC()
 	bool did = 0;
 	while (1)
 	{
-		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
+		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)//鼠标左键点击
 		{
 			did = 0;
 			if (np == 1)
 			{
-				if (IS_MSG(msg, 630, 580, 60, 50))
+				if (IS_MSG(msg, 630, 580, 60, 50))//投降
 				{
 					WIN(2);
 					return;
 				}
-				if (IS_MSG(msg, 710, 580, 60, 50))
+				if (IS_MSG(msg, 710, 580, 60, 50))//跳过
 				{
 					if (P[np].skiptimes == MAX_JUMPS) continue;
 					P[np].skiptimes++;
@@ -648,7 +654,7 @@ void _2::MC()
 					STEPS_STATUS = Step();
 					PRINTNOW();
 					PS(1);
-					if (STEPS_STATUS == 2)
+					if (STEPS_STATUS == 2)//步数耗尽，直接结束
 					{
 						WIN(0);
 						return;
@@ -658,12 +664,12 @@ void _2::MC()
 			}
 			else
 			{
-				if (IS_MSG(msg, 630, 195, 60, 50))
+				if (IS_MSG(msg, 630, 195, 60, 50))//投降
 				{
 					WIN(1);
 					return;
 				}
-				if (IS_MSG(msg, 710, 195, 60, 50))
+				if (IS_MSG(msg, 710, 195, 60, 50))//跳过
 				{
 					if (P[np].skiptimes == MAX_JUMPS) continue;
 					P[np].skiptimes++;
@@ -671,7 +677,7 @@ void _2::MC()
 					STEPS_STATUS = Step();
 					PRINTNOW();
 					PS(1);
-					if (STEPS_STATUS == 2)
+					if (STEPS_STATUS == 2)//步数耗尽，直接结束
 					{
 						WIN(0);
 						return;
@@ -679,7 +685,7 @@ void _2::MC()
 					continue;
 				}
 			}
-			if (IS_MSG(msg, 920, 660, 60, 40))
+			if (IS_MSG(msg, 920, 660, 60, 40))//设置
 			{
 				Setting();
 				PRINTNOW();
@@ -689,12 +695,12 @@ void _2::MC()
 			{
 				Chess tmp = P[np].MyChess[j];
 				if (tmp.live == 0) continue;
-				if (IS_MSG(msg, _2startposx[tmp.cpg] + _2divx * (tmp.cpy - 1) * trans[tmp.cpg], _2startposy[tmp.cpg] + _2divy * (tmp.cpx - 1) * trans[tmp.cpg], ChessX, ChessY))
+				if (IS_MSG(msg, _2startposx[tmp.cpg] + _2divx * (tmp.cpy - 1) * trans[tmp.cpg], _2startposy[tmp.cpg] + _2divy * (tmp.cpx - 1) * trans[tmp.cpg], ChessX, ChessY))//点击了一个当前行动玩家的棋子
 				{
 					PRINTNOW();
 					did = 1;
 					if (tmp.level == 10 || (tmp.level == 20 && tmp.cflag == 2)) continue;
-					if (tmp.cflag == 0 && sc == j)
+					if (tmp.cflag == 0 && sc == j)//翻开棋子，计一步
 					{
 						P[np].MyChess[j].cflag = 2;
 						STEPS_STATUS = Step();
@@ -714,11 +720,11 @@ void _2::MC()
 					sc = j;
 					char tname[20];
 					strcpy_s(tname, (tmp.cflag == 2 ? _2LEVELMAP[tmp.level].c_str() : ""));
-					button(_2startposx[tmp.cpg] + _2divx * (tmp.cpy - 1) * trans[tmp.cpg], _2startposy[tmp.cpg] + _2divy * (tmp.cpx - 1) * trans[tmp.cpg], ChessX, ChessY, tname, RGB(200, 200, 200));
+					button(_2startposx[tmp.cpg] + _2divx * (tmp.cpy - 1) * trans[tmp.cpg], _2startposy[tmp.cpg] + _2divy * (tmp.cpx - 1) * trans[tmp.cpg], ChessX, ChessY, tname, RGB(200, 200, 200));//变灰
 					break;
 				}
 			}
-			if (did == 1 || sc == -1) continue;
+			if (did == 1 || sc == -1) continue;//没选中棋子或者已经处理过
 			for (int j = 0; j < _CN; j++)
 			{
 				Chess tmp = P[3 - np].MyChess[j];
@@ -726,22 +732,22 @@ void _2::MC()
 				if (IS_MSG(msg, _2startposx[tmp.cpg] + _2divx * (tmp.cpy - 1) * trans[tmp.cpg], _2startposy[tmp.cpg] + _2divy * (tmp.cpx - 1) * trans[tmp.cpg], ChessX, ChessY))
 				{
 					int nextsd = -1;
-					if (GOABLE(P[np].MyChess[sc], P[3 - np].MyChess[j], 1))
+					if (GOABLE(P[np].MyChess[sc], P[3 - np].MyChess[j], 1))//能打到
 					{
 						STEPS_STATUS = Step();
 						did = 1;
 						Chess c1 = P[np].MyChess[sc], c2 = P[3 - np].MyChess[j];
-						P[np].MyChess[sc].cpg = c2.cpg, P[np].MyChess[sc].cpx = c2.cpx, P[np].MyChess[sc].cpy = c2.cpy;
-						Move(np, sc, c2.cpg, c2.cpx, c2.cpy);
+						P[np].MyChess[sc].cpg = c2.cpg, P[np].MyChess[sc].cpx = c2.cpx, P[np].MyChess[sc].cpy = c2.cpy;//移动到目标
+						Move(np, sc, c2.cpg, c2.cpx, c2.cpy);//记录移动
 						bool d1 = 0, d2 = 0;
-						P[np].MyChess[sc].cflag = 2, P[3 - np].MyChess[j].cflag = 2;
-						Show(np, sc), Show(3 - np, j);
+						P[np].MyChess[sc].cflag = 2, P[3 - np].MyChess[j].cflag = 2;//翻开
+						Show(np, sc), Show(3 - np, j);//记录翻开
 						switch (N_KILL(c1, c2))
 						{
 						case 0:
 							for (int i = 0; i < _CN; i++) P[3 - np].MyChess[i].live = 0;
 							Player_Dead(3 - np);
-							if (c1.level == 21) P[np].MyChess[sc].live = 0, Dead(np, sc);//炸旗
+							if (c1.level == 21) P[np].MyChess[sc].live = 0, Dead(np, sc);//炸旗特判
 							PRINTNOW();
 							WIN(np);
 							return;
@@ -759,17 +765,17 @@ void _2::MC()
 							P[3 - np].MyChess[j].live = 0, P[3 - np].DeadChess.push_back(_4LEVELMAP[P[3 - np].MyChess[j].level]), Dead(3 - np, j);
 							break;
 						}
-						np = 3 - np;
+						np = 3 - np;//玩家轮换
 					}
 					sc = -1;
 					PRINTNOW();
 					if (nextsd != -1) PS(nextsd);
-					if (IS_DEAD(np))
+					if (IS_DEAD(np))//判断当前玩家是否全军覆没（同归时攻者死）
 					{
 						WIN(3 - np);
 						return;
 					}
-					if (IS_DEAD(3 - np))
+					if (IS_DEAD(3 - np))//判断被攻击玩家是否全军覆没
 					{
 						WIN(np);
 						return;
@@ -791,7 +797,7 @@ void _2::MC()
 					for (int Y = 1; Y <= 5 && !did; Y++)
 					{
 						int sx = _2startposx[g] + _2divx * trans[g] * (Y - 1), sy = _2startposy[g] + _2divy * trans[g] * (X - 1);
-						if (IS_MSG(msg,sx,sy,ChessX,ChessY) && GOABLE(P[np].MyChess[sc], Chess(0, g, X, Y), 0))
+						if (IS_MSG(msg, sx, sy, ChessX, ChessY) && GOABLE(P[np].MyChess[sc], Chess(0, g, X, Y), 0))//是否选中空位置且可走
 						{
 							STEPS_STATUS = Step();
 							P[np].MyChess[sc].cpg = g, P[np].MyChess[sc].cpx = X, P[np].MyChess[sc].cpy = Y;
@@ -816,7 +822,7 @@ void _2::MC()
 void _4::GO_NEXT()
 {
 	do np = np % 4 + 1;
-	while (P[np].live == 0);
+	while (P[np].live == 0);//跳过死玩家
 }
 void _4::PRINTNOW()
 {
@@ -828,7 +834,7 @@ void _4::PRINTNOW()
 	setcolor(RGB(80, 20, 20));
 	setfillcolor(RED);
 	int lrx = 0, lry = 0, rx = 0, ry = 0;
-	for (int i = 0; i < Go_Path.size(); i++)
+	for (int i = 0; i < Go_Path.size(); i++)//画路径
 	{
 		Pos p = Go_Path[i];
 		rx = (p.g ? stpx[p.g] + D * ((p.x - 1) * transxx[p.g] + (p.y - 1) * transyx[p.g]) : 442 + 2 * D * (p.x % 3)) + 13, ry = (p.g ? stpy[p.g] + D * ((p.x - 1) * transxy[p.g] + (p.y - 1) * transyy[p.g]) : 262 + 2 * D * (p.x / 3)) + 13;
@@ -843,7 +849,7 @@ void _4::PRINTNOW()
 		}
 		lrx = rx, lry = ry;
 	}
-	for (int i = 1; i <= 4; i++)
+	for (int i = 1; i <= 4; i++)//画每个活棋
 	{
 		if (P[i].live == 0) continue;
 		for (int j = 0; j < _CN; j++)
@@ -856,7 +862,7 @@ void _4::PRINTNOW()
 			else button(stpx[tmp.cpg] + D * ((tmp.cpx-1)*transxx[tmp.cpg]+(tmp.cpy - 1) * transyx[tmp.cpg]), stpy[tmp.cpg] + D * ((tmp.cpx - 1) * transxy[tmp.cpg]+(tmp.cpy-1)*transyy[tmp.cpg]), L, L, tname, MyCol[i],20);
 		}
 	}
-	for (int i = 1; i <= 4; i++)
+	for (int i = 1; i <= 4; i++)//画每个玩家及其死亡棋子
 	{
 		char tname[20];
 		string ts = P_Name[i];
@@ -878,13 +884,13 @@ void _4::PRINTNOW()
 	if (STEPS_STATUS == 1 || STEPS_STATUS == 2) button(850, 10, 220, 30, "相持时间已经接近限制", RGB(200, 0, 0));
 	EndBatchDraw();
 }
-bool _4::TEAM_WIN()
+bool _4::TEAM_WIN()//判断团队胜利
 {
 	return ((P[1].live && P[3].live) || (P[2].live && P[4].live));
 }
 bool _4::ROAD_GO_N(Pos F, Pos T)
 {
-	int f = Mix(F), t = Mix(T);
+	int f = Mix(F), t = Mix(T);//转换为数字以符合ROAD数组
 	for (int r = 1; r <= 18; r++)
 	{
 		int pick = 0, pi = 0;
@@ -894,7 +900,7 @@ bool _4::ROAD_GO_N(Pos F, Pos T)
 			{
 				if (pick)
 				{
-					Go_Path.clear();
+					Go_Path.clear();//清空路径并记录新的路径
 					if (_4ROAD[r][i] == t)
 					{
 						for (int ii = pi; ii <= i; ii++) Go_Path.push_back(UnMix(_4ROAD[r][ii]));
@@ -909,7 +915,7 @@ bool _4::ROAD_GO_N(Pos F, Pos T)
 				pi = i;
 				continue;
 			}
-			if (pick && !IS_VOID(_4ROAD[r][i] / 100, (_4ROAD[r][i] / 10) % 10, _4ROAD[r][i] % 10)) break;
+			if (pick && !IS_VOID(_4ROAD[r][i] / 100, (_4ROAD[r][i] / 10) % 10, _4ROAD[r][i] % 10)) break;//遇到非空位置表明此路不通
 		}
 	}
 	return false;
@@ -917,8 +923,8 @@ bool _4::ROAD_GO_N(Pos F, Pos T)
 bool _4::ROAD_GO_B(Pos F, Pos T)
 {
 	queue<int> q;
-	bool vis[501];
-	int pre[501];
+	bool vis[501];//标记数组
+	int pre[501];//前驱指向数组
 	while (!q.empty()) q.pop();
 	memset(vis, 0, sizeof(vis));
 	memset(pre, 0x3f, sizeof(pre));
@@ -929,7 +935,7 @@ bool _4::ROAD_GO_B(Pos F, Pos T)
 	{
 		mn = q.front();
 		q.pop();
-		if (mn == Mix(T))
+		if (mn == Mix(T))//找到了
 		{
 			Go_Path.clear();
 			while (mn != 0x3f3f3f3f)
@@ -940,12 +946,12 @@ bool _4::ROAD_GO_B(Pos F, Pos T)
 			reverse(Go_Path.begin(), Go_Path.end());
 			return true;
 		}
-		if (!IS_VOID(mn / 100, (mn / 10) % 10, mn % 10) && (mn != Mix(F))) continue;
+		if (!IS_VOID(mn / 100, (mn / 10) % 10, mn % 10) && (mn != Mix(F))) continue;//此路不通
 		for (int i = 1; i <= 18; i++)
 		{
 			for (uint64_t j = 0; j < _4ROAD[i].size(); j++)
 			{
-				if (mn == _4ROAD[i][j])
+				if (mn == _4ROAD[i][j])//每条路上去找
 				{
 					if (j > 0 && vis[_4ROAD[i][j - 1]] == 0) vis[_4ROAD[i][j - 1]] = true, q.push(_4ROAD[i][j - 1]), pre[_4ROAD[i][j - 1]] = mn;
 					if (j < _4ROAD[i].size() - 1 && vis[_4ROAD[i][j + 1]] == 0) vis[_4ROAD[i][j + 1]] = true, q.push(_4ROAD[i][j + 1]), pre[_4ROAD[i][j + 1]] = mn;
@@ -957,15 +963,15 @@ bool _4::ROAD_GO_B(Pos F, Pos T)
 }
 bool _4::GOABLE(Chess A, Chess B, bool att)
 {
-	for (int i = 0; att == 1 && i < 5; i++) if (make_pair(B.cpx, B.cpy) == XY[i]) return false;
+	for (int i = 0; att == 1 && i < 5; i++) if (make_pair(B.cpx, B.cpy) == XY[i]) return false;//不得攻击行营
 	if (NORMAL_GO(A, B)) return true;
 	if (A.level == 32 && A.cflag == 2) return ROAD_GO_B(Pos(A.cpg, A.cpx, A.cpy), Pos(B.cpg, B.cpx, B.cpy));
 	else return ROAD_GO_N(Pos(A.cpg, A.cpx, A.cpy), Pos(B.cpg, B.cpx, B.cpy));
 }
 void _4::MC()
 {
-	for (int i = 1; i <= 4; i++) P[i].Init(i);
-	Record_Initialize();
+	for (int i = 1; i <= 4; i++) P[i].Init(i);//初始化玩家
+	Record_Initialize();//初始化记录
 	if (supermode) Go_Super();
 	Go_Path.clear();
 	ExMessage msg;
@@ -989,7 +995,7 @@ void _4::MC()
 				sp = 0, sc = -1, lsp = 0, lsc = -1;
 				GO_NEXT();
 				tp--;
-				if (tp == 1 || (tp == 2 && TEAM_WIN()))
+				if (tp == 1 || (tp == 2 && TEAM_WIN()))//只剩下一人或者两人同队
 				{
 					PRINTNOW();
 					WIN(((np == 1 || np == 3) ? 3 : 4));
@@ -1019,7 +1025,7 @@ void _4::MC()
 				}
 				continue;
 			}
-			if (IS_MSG(msg, 950, 50, 100, 60))
+			if (IS_MSG(msg, 950, 50, 100, 60))//	设置
 			{
 				Setting();
 				PRINTNOW();
@@ -1034,9 +1040,9 @@ void _4::MC()
 					if (tmp.live == 0) continue;
 					if ((tmp.cpg != 0 && IS_MSG(msg, stpx[tmp.cpg] + D * ((tmp.cpx - 1) * transxx[tmp.cpg] + (tmp.cpy - 1) * transyx[tmp.cpg]), stpy[tmp.cpg] + D * ((tmp.cpx - 1) * transxy[tmp.cpg] + (tmp.cpy - 1) * transyy[tmp.cpg]), L, L)) || (tmp.cpg == 0 && IS_MSG(msg, 442 + 2 * D * (tmp.cpx % 3), 262 + 2 * D * (tmp.cpx / 3), L, L)))
 					{
-						if (i == np)
+						if (i == np)//选中了当前玩家的棋子
 						{
-							if (tmp.level == 10 || (tmp.level == 20 && tmp.cflag == 2))
+							if (tmp.level == 10 || (tmp.level == 20 && tmp.cflag == 2))//选了不该选的棋子
 							{
 								sp = 0, sc = -1, lsp = 0, lsc = -1;
 								PRINTNOW();
@@ -1056,7 +1062,7 @@ void _4::MC()
 			}
 			if (sp == np)
 			{
-				if (sc == lsc)
+				if (sc == lsc)//两次选了同一个子
 				{
 					if (P[np].MyChess[lsc].cflag == 0)
 					{
@@ -1076,6 +1082,7 @@ void _4::MC()
 					}
 				}
 				PRINTNOW();
+				//换一个子选中
 				Chess tmp = P[sp].MyChess[sc];
 				char tname[20];
 				strcpy_s(tname, (tmp.cflag == 2 ? _4LEVELMAP[tmp.level].c_str() : ""));
@@ -1084,9 +1091,9 @@ void _4::MC()
 				lsp = sp, lsc = sc;
 				sp = 0, sc = -1;
 			}
-			else if (sp != 0)
+			else if (sp != 0)//选了另一个玩家的棋子
 			{
-				if (lsp == 0||abs(lsp - sp) == 2)
+				if (lsp == 0 || abs(lsp - sp) == 2)//不得攻击友军
 				{
 					sp = 0, sc = -1, lsp = 0, lsc = -1;
 					PRINTNOW();
@@ -1106,7 +1113,7 @@ void _4::MC()
 					switch (N_KILL(c1, c2))
 					{
 					case 0:
-						if (c1.level == 21) P[lsp].MyChess[lsc].live = 0, Dead(lsp, lsc);//炸旗
+						if (c1.level == 21) P[lsp].MyChess[lsc].live = 0, Dead(lsp, lsc);//炸旗特判
 						for (int i = 0; i < _CN; i++) P[sp].MyChess[i].live = 0;
 						Player_Dead(sp);
 						P[sp].live = 0;
@@ -1137,7 +1144,7 @@ void _4::MC()
 						break;
 					}
 					if (jump) continue;
-					if (IS_DEAD(sp))
+					if (IS_DEAD(sp))//判断进攻方是否全军覆没
 					{
 						P[sp].live = 0;
 						Player_Dead(sp);
@@ -1151,7 +1158,7 @@ void _4::MC()
 							return;
 						}
 					}
-					if (IS_DEAD(lsp))
+					if (IS_DEAD(lsp))//判断被攻击方是否全军覆没
 					{
 						P[lsp].live = 0;
 						Player_Dead(lsp);
@@ -1176,9 +1183,9 @@ void _4::MC()
 					return;
 				}
 			}
-			else
+			else//选中空位置
 			{
-				if (lsp == 0) continue;
+				if (lsp == 0) continue;//没选中棋子
 				int G = 0, X = 0, Y = 0, did = 0;
 				for (int j = 0; j < 9; j++)
 				{
@@ -1205,7 +1212,7 @@ void _4::MC()
 					}
 				}
 				if (did == 0) continue;
-				if (GOABLE(P[lsp].MyChess[lsc], Chess(0, G, X, Y), 0))
+				if (GOABLE(P[lsp].MyChess[lsc], Chess(0, G, X, Y), 0))//能走
 				{
 					STEPS_STATUS = Step();
 					P[lsp].MyChess[lsc].cpg = G, P[lsp].MyChess[lsc].cpx = X, P[lsp].MyChess[lsc].cpy = Y;
@@ -1227,23 +1234,21 @@ void _4::MC()
 }
 void Record::Record_Initialize()
 {
-	if (!DO_REC) return;
+	if (!DO_REC) return;//不记录
 	cnt_step = 0;
-	string NAME = "Records/Rec-", TS = "";
-	if (Tp == 2) NAME += "2-";
-	else NAME += "4-";
+	string NAME = "Records/Rec-"+to_string(Tp)+"-", TS = "";
 	time_t timep;
 	time(&timep);
 	char tmp[64];
 	struct tm nowTime;
 	localtime_s(&nowTime, &timep);
-	strftime(tmp, sizeof(tmp), "%Y-%m-%d-%H-%M-%S", &nowTime);
+	strftime(tmp, sizeof(tmp), "%Y-%m-%d-%H-%M-%S", &nowTime);//获取格式化时间
 	NAME += string(tmp);
 	NAME += ".rec";
 	char file_name[100];
 	strcpy_s(file_name, NAME.c_str());
-	freopen_s(&stream, file_name, "w", stdout);
-	printf("REC %d %d\nplayers\n", Tp, supermode);
+	freopen_s(&stream, file_name, "w", stdout);//重定向输出到存档文件
+	printf("REC %d %d\nplayers\n", Tp, supermode);//开始记录
 	for (int i = 1; i <= Tp; i++)
 	{
 		for (int j = 0; j < _CN; j++) printf("%d ", P[i].MyChess[j].level);
@@ -1255,7 +1260,7 @@ void Record::Record_End(int who)
 	printf("win %d\n", who);
 	freopen_s(&stream, "CON", "w", stdout);
 }
-void Record::Move(int lsp, int lsc, int G, int X, int Y)
+void Record::Move(int lsp, int lsc, int G, int X, int Y)//记录移动和路径
 {
 	printf("move %d %d %d %d %d\n", lsp, lsc, G, X, Y);
 	printf("path %llu\n", Go_Path.size());
@@ -1277,8 +1282,8 @@ void Record::RS(int sound)
 int Record::Step()
 {
 	cnt_step++;
-	if (cnt_step > MAX_STEPS) return 2;
-	if (cnt_step > MAX_STEPS - REST_STEPS) return 1;
+	if (cnt_step > MAX_STEPS) return 2;//超过步数限制
+	if (cnt_step > MAX_STEPS - REST_STEPS) return 1;//接近步数限制
 	printf("step %d\n", cnt_step);
 	return 0;
 }
@@ -1288,7 +1293,7 @@ void Record::Player_Dead(int who)
 }
 void HISTORY()
 {
-	string path = "Records";
+	string path = "Records";//存档文件夹
 	vector<string> Recs;
 	Recs.clear();
 	int N_R = 0, PAGE = 1, EP = 12;
@@ -1306,14 +1311,14 @@ void HISTORY()
 	}
 	//------------------------------------------------------------抄来的-End
 	cleardevice();
-	if (N_R == 0)
+	if (N_R == 0)//没有存档
 	{
 		putimage(0, 0, &bk0);
 		button(100, 150, 880, 420, "没有存档", RGB(255, 255, 0), 40);
 		Sleep(2000);
 		return;
 	}
-	int total_page = (N_R - 1) / EP + 1;
+	int total_page = (N_R - 1) / EP + 1;//总页数
 	bool ft = 1, did = 0;
 	ExMessage msg;
 	char tname[100];
@@ -1323,17 +1328,17 @@ void HISTORY()
 		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
 		{
 			did = 1;
-			if (PAGE != 1 && FH.IS_MSG(msg, 30, 30, 80, 50))
+			if (PAGE != 1 && FH.IS_MSG(msg, 30, 30, 80, 50))//上一页
 			{
 				PAGE--;
 				continue;
 			}
-			if (PAGE != total_page && FH.IS_MSG(msg, 970, 30, 80, 50))
+			if (PAGE != total_page && FH.IS_MSG(msg, 970, 30, 80, 50))//下一页
 			{
 				PAGE++;
 				continue;
 			}
-			if (FH.IS_MSG(msg, 30, 650, 60, 40)) return;
+			if (FH.IS_MSG(msg, 30, 650, 60, 40)) return;//返回
 			for (int i = (PAGE - 1) * EP; i < min(PAGE * EP, N_R); i++)
 			{
 				if (FH.IS_MSG(msg, 120, 100 + 50 * (i - (PAGE - 1) * EP), 840, 45))
@@ -1345,7 +1350,7 @@ void HISTORY()
 					cleardevice();
 					string key;
 					cin >> key;
-					if (key != "REC")
+					if (key != "REC")//校验
 					{
 						button(40, 40, 1000, 50, "ERROR!NOT A RECORD FILE!", RGB(255, 255, 0), 30);
 						cin.clear();
@@ -1358,12 +1363,12 @@ void HISTORY()
 					FH.Go_Path.clear();
 					int ns = 0, op = 0, go_back = 0, lsp, lsc, g, x, y;
 					cin >> key;
-					for (int j = 1; j <= Tp; j++)
+					for (int j = 1; j <= Tp; j++)//读入玩家信息
 					{
 						P[j].Init(j);
 						for (int k = 0; k < _CN; k++) cin >> P[j].MyChess[k].level;
 					}
-					if (supermode)
+					if (supermode)//超级模式信息读入
 					{
 						cin >> key;
 						if (key != "N")
@@ -1429,7 +1434,7 @@ void HISTORY()
 										if (reprint)
 										{
 											H4.PRINTNOW();
-											BeginBatchDraw();
+											BeginBatchDraw();//绘制复盘控制相关信息
 											button(30, 30, 60, 30, "复盘", RGB(255, 0, 0), 25);
 											button(100, 30, 80, 30, "下一步", RGB(0, 0, 255), 25);
 											button(30, 70, 60, 30, (showmode == 0 ? "正常" : "全明"), RGB(255, 255, 0), 25);
@@ -1459,7 +1464,7 @@ void HISTORY()
 								P[lsp].MyChess[lsc].cpg = g, P[lsp].MyChess[lsc].cpx = x, P[lsp].MyChess[lsc].cpy = y;
 								cin >> key;
 								cin >> op;
-								FH.Go_Path.clear();
+								FH.Go_Path.clear();//清空并读入路径
 								for (int j = 0; j < op; j++)
 								{
 									int mixed;
@@ -1484,7 +1489,6 @@ void HISTORY()
 						else cin >> op;
 						H4.PRINTNOW();
 						FH.WIN(op);
-						
 					}
 					else 
 					{
@@ -1495,7 +1499,7 @@ void HISTORY()
 								cin >> op;
 								FH.PS(op);
 								H2.PRINTNOW();
-								BeginBatchDraw();
+								BeginBatchDraw();//绘制复盘控制相关信息
 								button(900, 300, 60, 30, "复盘", RGB(255, 0, 0), 25);
 								button(970, 300, 80, 30, "下一步", RGB(0, 0, 255), 25);
 								button(900, 340, 60, 30, (showmode == 0 ? "正常" : "全明"), RGB(255, 255, 0), 25);
@@ -1552,7 +1556,7 @@ void HISTORY()
 								P[lsp].MyChess[lsc].cpg = g, P[lsp].MyChess[lsc].cpx = x, P[lsp].MyChess[lsc].cpy = y;
 								cin >> key;
 								cin >> op;
-								FH.Go_Path.clear();
+								FH.Go_Path.clear();//清空并读入路径
 								for (int j = 0; j < op; j++)
 								{
 									int mixed;
@@ -1616,7 +1620,7 @@ void Setting()
 	loadimage(&select, "Resources/select.png", 200, 60);
 	Pub FS;
 	bool ft = 1, did = 0;
-	int vx = 700, vy = 90,div = 80;
+	int vx = 700, vy = 90, div = 80;
 	bool* op[4] = { &DO_REC, &AutoUpdate, &PLAY_BGM, &PLAY_SOUND };
 	int* num[3] = { &MAX_STEPS, &MAX_JUMPS, &REST_STEPS };
 	while (1)
@@ -1627,13 +1631,13 @@ void Setting()
 			if (FS.IS_MSG(msg, 30, 650, 60, 40)) return;
 			for (int i = 0; i < 4; i++)
 			{
-				if ((msg.x - vx - 30) * (msg.x - vx - 30) + (msg.y - vy - 30 - div * i) * (msg.y - vy - 30 - div * i) <= 900 || (msg.x - vx - 90) * (msg.x - vx - 90) + (msg.y - vy - 30 - div * i) * (msg.y - vy - 30 - div * i) <= 900 || (vx + 30 <= msg.x && msg.x <= vx + 90 && vy + div * i <= msg.y && msg.y <= vy + div * i + 60))
+				if ((msg.x - vx - 30) * (msg.x - vx - 30) + (msg.y - vy - 30 - div * i) * (msg.y - vy - 30 - div * i) <= 900 || (msg.x - vx - 90) * (msg.x - vx - 90) + (msg.y - vy - 30 - div * i) * (msg.y - vy - 30 - div * i) <= 900 || (vx + 30 <= msg.x && msg.x <= vx + 90 && vy + div * i <= msg.y && msg.y <= vy + div * i + 60))//点击开关按钮
 				{
 					*op[i] = !(*op[i]);
 					if (i == 2)
 					{
-						if (*op[i] == 1) hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)Start_Play, NULL, 0, &pid);
-						else cv.notify_one();
+						if (*op[i] == 1) hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)Start_Play, NULL, 0, &pid);//开启音乐
+						else cv.notify_one();//关闭音乐
 					}
 				}
 			}
@@ -1641,8 +1645,8 @@ void Setting()
 			{
 				if (FS.IS_MSG(msg, vx - 40, vy + div * i, 50, 60)) (*num[i - 4])--;
 				if (FS.IS_MSG(msg, vx + 110, vy + div * i, 50, 60)) (*num[i - 4])++;
-				if ((*num[i - 4]) < 0) (*num[i - 4]) = 0;
-				if (REST_STEPS + 20 > MAX_STEPS)
+				if ((*num[i - 4]) < 0) (*num[i - 4]) = 0;//防止负数越界
+				if (REST_STEPS + 20 > MAX_STEPS)//防止最大步数小于剩余步数+20（至少可走20步不警告）
 				{
 					if (i == 4) (*num[i - 4])++;
 					else (*num[i - 4])--;
@@ -1663,12 +1667,12 @@ void Setting()
 				char tname[20];
 				strcpy_s(tname, str[i].c_str());
 				button(200, vy + div * i, 300, 60, tname, RGB(200, 100, 0), 25);
-				if (i < 4)
+				if (i < 4)//前四个开关
 				{
 					if (*op[i]) putnewbk(NULL, vx, vy + div * i, &on);
 					else putnewbk(NULL, vx, vy + div * i, &off);
 				}
-				else
+				else//后三个数字
 				{
 					putnewbk(NULL, vx - 40, vy + div * i, &select);
 					settextstyle(30, 0, "黑体");
@@ -1718,10 +1722,10 @@ void About()
 	button(_sx + 280, 300, 80, 80, " ", RGB(200, 200, 200), 40);
 	f.lfHeight = 32;
 	settextstyle(&f);
-	outtextxy(_sx, _sy + 2 * _d, "Version 0.5.6");
-	string bd = "Build " + (string)__DATE__ + "  " + (string)__TIME__;
+	outtextxy(_sx, _sy + 2 * _d, "Version 0.5.6");//版本号
+	string bd = "Build " + (string)__DATE__ + "  " + (string)__TIME__;//编译时间
 	outtextxy(_sx, _sy + 3 * _d, bd.c_str());
-	outtextxy(_sx, _sy + 4 * _d, "Copyright 2024 PRXOR. All rights reserved.");
+	outtextxy(_sx, _sy + 4 * _d, "Copyright 2024 PRXOR. All rights reserved.");//版权
 	button(400, 600, 280, 80, "确   定", RGB(50, 200, 50), 40);
 	EndBatchDraw();
 	while (1)
