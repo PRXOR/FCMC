@@ -21,13 +21,13 @@
 #pragma comment( linker, "/subsystem:\"windows\" /entry:\"mainCRTStartup\"" )
 using namespace std;
 const int _CN = 25;//棋子数量
-int np, tp, Tp, MAX_STEPS, MAX_JUMPS, REST_STEPS, STEPS_STATUS = 0;
-bool supermode, historymode, showmode, AutoUpdate, DO_REC, PLAY_BGM, PLAY_SOUND;
-FILE* stream;
-HANDLE hThread;
-DWORD pid;
-mutex mtx;
-condition_variable cv;
+int np, tp, Tp, MAX_STEPS, MAX_JUMPS, REST_STEPS, STEPS_STATUS = 0;//玩家数量，剩余玩家数量，总玩家数量，最大步数，最大跳过次数，剩余步数，步数状态
+bool supermode, historymode, showmode, AutoUpdate, DO_REC, PLAY_BGM, PLAY_SOUND;//超级模式，复盘模式，全明模式，自动更新，是否记录，是否播放背景音乐，是否播放音效
+FILE* stream;//文件流
+HANDLE hThread;//线程句柄
+DWORD pid;//线程ID
+mutex mtx;//互斥锁
+condition_variable cv;//条件变量
 
 struct Chess
 {
@@ -63,6 +63,7 @@ static void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg) //新版png（�
 	AlphaBlend(dstDC, x, y, w, h, srcDC, 0, 0, w, h, bf);
 }
 IMAGE bk0, bk2, bk4;//背景，双人棋盘，四人棋盘
+static bool IS_MSG(ExMessage msg, int spx, int spy, int lx, int ly) { return (spx <= msg.x && msg.x <= spx + lx && spy <= msg.y && msg.y <= spy + ly); }
 static void button(int x, int y, int w, int h, const char* text,COLORREF col,int size=20)
 {
 	setlinecolor(WHITE);//设置框边颜色
@@ -89,14 +90,14 @@ class Record
 	int cnt_step = 0;//记录步数
 public:
 	static vector<Pos> Go_Path;//存储走棋路径
-	int Mix(Pos P);
-	Pos UnMix(int mixed);
+	static int Mix(Pos P);
+	static Pos UnMix(int mixed);
 	void Record_Initialize();
-	void Record_End(int who);
+	static void Record_End(int who);
 	void Move(int lsp,int lsc,int G,int X,int Y);
 	void Show(int lsp, int lsc);
 	void Dead(int lsp, int lsc);
-	void RS(int sound);
+	static void RS(int sound);
 	int Step();
 	void Player_Dead(int who);
 };
@@ -108,9 +109,8 @@ public:
 	static string _2LEVELMAP[41], _4LEVELMAP[41];
 	static pair<int, int> XY[5];//行营
 	string P_Name[5] = { "","玩家1","玩家2","玩家3","玩家4" };
-	bool IS_MSG(ExMessage msg, int spx, int spy, int lx, int ly) { return (spx <= msg.x && msg.x <= spx + lx && spy <= msg.y && msg.y <= spy + ly); }
-	void PS(int sound);//播放音效
-	void WIN(int who);//胜利
+	static void PS(int sound);//播放音效
+	static void WIN(int who);//胜利
 	void Draw_Arrow(int x1, int y1, int x2, int y2, int L);//画箭头
 	bool IS_VOID(int g, int x, int y);//判断是否为空
 	bool IS_DEAD(int p);//判断玩家是否死亡
@@ -118,7 +118,12 @@ public:
 	int N_KILL(Chess A, Chess B);//判断大小，返回谁死亡
 	void Go_Super();//超级模式初始化
 	static void Game_Initialize();//游戏初始化
-} FH;
+	virtual void PRINTNOW() = 0;
+	virtual bool ROAD_GO_N(Pos F, Pos T) = 0;
+	virtual bool ROAD_GO_B(Pos F, Pos T) = 0;
+	virtual bool GOABLE(Chess A, Chess B, bool att) = 0;
+	virtual void MC() = 0;
+};
 vector<Pos> Record::Go_Path = {};
 map< pair<int, int>, vector< pair<int, int> > > Pub::NA = {};
 vector<int> Pub::_2ROAD[8] = {}, Pub::_4ROAD[20] = {};
@@ -690,6 +695,7 @@ void _2::MC()
 				Setting();
 				PRINTNOW();
 				did = 1;
+				sc = -1;
 			}
 			for (int j = 0; j < _CN; j++)
 			{
@@ -1030,6 +1036,7 @@ void _4::MC()
 				Setting();
 				PRINTNOW();
 				did = 1;
+				sp = 0, sc = -1, lsp = 0, lsc = -1;
 			}
 			for (int i = 1; i <= 4 && did == 0; i++)
 			{
@@ -1328,20 +1335,20 @@ void HISTORY()
 		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
 		{
 			did = 1;
-			if (PAGE != 1 && FH.IS_MSG(msg, 30, 30, 80, 50))//上一页
+			if (PAGE != 1 && IS_MSG(msg, 30, 30, 80, 50))//上一页
 			{
 				PAGE--;
 				continue;
 			}
-			if (PAGE != total_page && FH.IS_MSG(msg, 970, 30, 80, 50))//下一页
+			if (PAGE != total_page && IS_MSG(msg, 970, 30, 80, 50))//下一页
 			{
 				PAGE++;
 				continue;
 			}
-			if (FH.IS_MSG(msg, 30, 650, 60, 40)) return;//返回
+			if (IS_MSG(msg, 30, 650, 60, 40)) return;//返回
 			for (int i = (PAGE - 1) * EP; i < min(PAGE * EP, N_R); i++)
 			{
-				if (FH.IS_MSG(msg, 120, 100 + 50 * (i - (PAGE - 1) * EP), 840, 45))
+				if (IS_MSG(msg, 120, 100 + 50 * (i - (PAGE - 1) * EP), 840, 45))
 				{
 					strcpy_s(tname, Recs[i].c_str());
 					button(120, 100 + 50 * (i - (PAGE - 1) * EP), 840, 45, tname, RGB(100, 100, 100));
@@ -1360,7 +1367,7 @@ void HISTORY()
 					}
 					cin >> Tp >> supermode;
 					tp = Tp, np = 0, showmode = 0, STEPS_STATUS = 0;
-					FH.Go_Path.clear();
+					Pub::Go_Path.clear();
 					int ns = 0, op = 0, go_back = 0, lsp, lsc, g, x, y;
 					cin >> key;
 					for (int j = 1; j <= Tp; j++)//读入玩家信息
@@ -1399,7 +1406,7 @@ void HISTORY()
 							if (key == "sound")
 							{
 								cin >> op;
-								FH.PS(op);
+								Pub::PS(op);
 								H4.PRINTNOW();
 								BeginBatchDraw();
 								button(30, 30, 60, 30, "复盘", RGB(255, 0, 0), 25);
@@ -1415,18 +1422,18 @@ void HISTORY()
 									if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN )
 									{
 										bool reprint = 0;
-										if (FH.IS_MSG(msg, 100, 30, 80, 30)) break;
-										if (FH.IS_MSG(msg, 30, 650, 60, 40))
+										if (IS_MSG(msg, 100, 30, 80, 30)) break;
+										if (IS_MSG(msg, 30, 650, 60, 40))
 										{
 											go_back = 1;
 											break;
 										}
-										if (FH.IS_MSG(msg, 30, 70, 60, 30))
+										if (IS_MSG(msg, 30, 70, 60, 30))
 										{
 											reprint = 1;
 											showmode = 1 - showmode;
 										}
-										if (FH.IS_MSG(msg, 950, 50, 100, 60))
+										if (IS_MSG(msg, 950, 50, 100, 60))
 										{
 											reprint = 1;
 											Setting();
@@ -1464,12 +1471,12 @@ void HISTORY()
 								P[lsp].MyChess[lsc].cpg = g, P[lsp].MyChess[lsc].cpx = x, P[lsp].MyChess[lsc].cpy = y;
 								cin >> key;
 								cin >> op;
-								FH.Go_Path.clear();//清空并读入路径
+								Pub::Go_Path.clear();//清空并读入路径
 								for (int j = 0; j < op; j++)
 								{
 									int mixed;
 									cin >> mixed;
-									FH.Go_Path.push_back(FH.UnMix(mixed));
+									Pub::Go_Path.push_back(Pub::UnMix(mixed));
 								}
 							}
 							else if (key == "show")
@@ -1481,14 +1488,14 @@ void HISTORY()
 							{
 								cin >> lsp >> lsc;
 								P[lsp].MyChess[lsc].live = 0;
-								P[lsp].DeadChess.push_back(FH._4LEVELMAP[P[lsp].MyChess[lsc].level]);
+								P[lsp].DeadChess.push_back(Pub::_4LEVELMAP[P[lsp].MyChess[lsc].level]);
 							}
 						}
 						if (go_back) continue;
 						if (key != "win") op = 0;
 						else cin >> op;
 						H4.PRINTNOW();
-						FH.WIN(op);
+						Pub::WIN(op);
 					}
 					else 
 					{
@@ -1497,7 +1504,7 @@ void HISTORY()
 							if (key == "sound")
 							{
 								cin >> op;
-								FH.PS(op);
+								Pub::PS(op);
 								H2.PRINTNOW();
 								BeginBatchDraw();//绘制复盘控制相关信息
 								button(900, 300, 60, 30, "复盘", RGB(255, 0, 0), 25);
@@ -1513,18 +1520,18 @@ void HISTORY()
 									if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
 									{
 										bool reprint = 0;
-										if (FH.IS_MSG(msg, 970, 300, 80, 30)) break;
-										if (FH.IS_MSG(msg, 990, 660, 60, 40))
+										if (IS_MSG(msg, 970, 300, 80, 30)) break;
+										if (IS_MSG(msg, 990, 660, 60, 40))
 										{
 											go_back = 1;
 											break;
 										}
-										if (FH.IS_MSG(msg, 900, 340, 60, 30))
+										if (IS_MSG(msg, 900, 340, 60, 30))
 										{
 											reprint = 1;
 											showmode = 1 - showmode;
 										}
-										if (FH.IS_MSG(msg, 920, 660, 60, 40))
+										if (IS_MSG(msg, 920, 660, 60, 40))
 										{
 											reprint = 1;
 											Setting();
@@ -1556,12 +1563,12 @@ void HISTORY()
 								P[lsp].MyChess[lsc].cpg = g, P[lsp].MyChess[lsc].cpx = x, P[lsp].MyChess[lsc].cpy = y;
 								cin >> key;
 								cin >> op;
-								FH.Go_Path.clear();//清空并读入路径
+								Pub::Go_Path.clear();//清空并读入路径
 								for (int j = 0; j < op; j++)
 								{
 									int mixed;
 									cin >> mixed;
-									FH.Go_Path.push_back(FH.UnMix(mixed));
+									Pub::Go_Path.push_back(Pub::UnMix(mixed));
 								}
 							}
 							else if (key == "show")
@@ -1573,14 +1580,14 @@ void HISTORY()
 							{
 								cin >> lsp >> lsc;
 								P[lsp].MyChess[lsc].live = 0;
-								P[lsp].DeadChess.push_back(FH._4LEVELMAP[P[lsp].MyChess[lsc].level]);
+								P[lsp].DeadChess.push_back(Pub::_4LEVELMAP[P[lsp].MyChess[lsc].level]);
 							}
 						}
 						if (go_back) continue;
 						if (key != "win") op = 0;
 						else cin >> op;
 						H2.PRINTNOW();
-						FH.WIN(op);
+						Pub::WIN(op);
 					}
 					cin.clear();
 					freopen_s(&stream, "CON", "r", stdin);
@@ -1618,7 +1625,6 @@ void Setting()
 	loadimage(&on, "Resources/on.png", 120, 60);
 	loadimage(&off, "Resources/off.png", 120, 60);
 	loadimage(&select, "Resources/select.png", 200, 60);
-	Pub FS;
 	bool ft = 1, did = 0;
 	int vx = 700, vy = 90, div = 80;
 	bool* op[4] = { &DO_REC, &AutoUpdate, &PLAY_BGM, &PLAY_SOUND };
@@ -1628,7 +1634,7 @@ void Setting()
 		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
 		{
 			did = 1;
-			if (FS.IS_MSG(msg, 30, 650, 60, 40)) return;
+			if (IS_MSG(msg, 30, 650, 60, 40)) return;
 			for (int i = 0; i < 4; i++)
 			{
 				if ((msg.x - vx - 30) * (msg.x - vx - 30) + (msg.y - vy - 30 - div * i) * (msg.y - vy - 30 - div * i) <= 900 || (msg.x - vx - 90) * (msg.x - vx - 90) + (msg.y - vy - 30 - div * i) * (msg.y - vy - 30 - div * i) <= 900 || (vx + 30 <= msg.x && msg.x <= vx + 90 && vy + div * i <= msg.y && msg.y <= vy + div * i + 60))//点击开关按钮
@@ -1643,8 +1649,8 @@ void Setting()
 			}
 			for (int i = 4; i < 7; i++)
 			{
-				if (FS.IS_MSG(msg, vx - 40, vy + div * i, 50, 60)) (*num[i - 4])--;
-				if (FS.IS_MSG(msg, vx + 110, vy + div * i, 50, 60)) (*num[i - 4])++;
+				if (IS_MSG(msg, vx - 40, vy + div * i, 50, 60)) (*num[i - 4])--;
+				if (IS_MSG(msg, vx + 110, vy + div * i, 50, 60)) (*num[i - 4])++;
 				if ((*num[i - 4]) < 0) (*num[i - 4]) = 0;//防止负数越界
 				if (REST_STEPS + 20 > MAX_STEPS)//防止最大步数小于剩余步数+20（至少可走20步不警告）
 				{
