@@ -29,7 +29,7 @@ DWORD pid;//线程ID
 mutex mtx;//互斥锁
 condition_variable cv;//条件变量
 IMAGE bk0, bk2, bk4;//背景，双人棋盘，四人棋盘
-string ver = "0.6.1";//版本号
+string ver = "0.6.2";//版本号
 
 static void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg) //新版png（透明图片）放置函数，抄来的
 {
@@ -253,7 +253,10 @@ int main()
 void Pub::Game_Initialize()
 {
 	srand(uint32_t(time(NULL)));//初始化随机数种子
-	DO_REC = 1, AutoUpdate = 0, MAX_STEPS = 400, MAX_JUMPS = 5, REST_STEPS = 40;//默认游戏设置
+	DO_REC = 1, AutoUpdate = 1, MAX_STEPS = 400, MAX_JUMPS = 5, REST_STEPS = 40;//默认游戏设置
+	loadimage(&bk0, _T("Resources/background0.png"), 1080, 720);//加载背景图片
+	loadimage(&bk2, _T("Resources/background3.jpg"), 560, 720);//加载双人棋盘图片
+	loadimage(&bk4, _T("Resources/background6.png"), 720, 720);//加载四人棋盘图片
 	freopen_s(&stream, "settings.config", "r", stdin);//读取游戏设置
 	string key;
 	while (cin >> key)
@@ -279,9 +282,6 @@ void Pub::Game_Initialize()
 			exit(0);
 		}
 	}
-	loadimage(&bk0, _T("Resources/background0.png"), 1080, 720);//加载背景图片
-	loadimage(&bk2, _T("Resources/background3.jpg"), 560, 720);//加载双人棋盘图片
-	loadimage(&bk4, _T("Resources/background6.png"), 720, 720);//加载四人棋盘图片
 	XY[0] = make_pair(2, 2), XY[1] = make_pair(2, 4), XY[2] = make_pair(3, 3), XY[3] = make_pair(4, 2), XY[4] = make_pair(4, 4);//行营坐标
 	_2LEVELMAP[10] = "军旗", _2LEVELMAP[20] = "地雷", _2LEVELMAP[21] = "炸弹", _2LEVELMAP[32] = "工兵", _2LEVELMAP[33] = "排长", _2LEVELMAP[34] = "连长", _2LEVELMAP[35] = "营长", _2LEVELMAP[36] = "团长", _2LEVELMAP[37] = "旅长", _2LEVELMAP[38] = "师长", _2LEVELMAP[39] = "军长", _2LEVELMAP[40] = "司令";//两字棋子名称
 	_4LEVELMAP[10] = "旗", _4LEVELMAP[20] = "雷", _4LEVELMAP[21] = "炸", _4LEVELMAP[32] = "兵", _4LEVELMAP[33] = "排", _4LEVELMAP[34] = "连", _4LEVELMAP[35] = "营", _4LEVELMAP[36] = "团", _4LEVELMAP[37] = "旅", _4LEVELMAP[38] = "师", _4LEVELMAP[39] = "军", _4LEVELMAP[40] = "司";//四字棋子名称
@@ -1763,7 +1763,21 @@ void About()
 }
 bool Update()
 {
-	system("curl -s https://api.github.com/repos/PRXOR/FCMC/releases/latest | findstr \"browser_download_url\" > tmp.txt");
+	putimage(0, 0, &bk0);
+	button(400, 300, 280, 120, "正在检查更新...", RGB(255, 255, 0), 35);
+	STARTUPINFO si;
+	PROCESS_INFORMATION pi;
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+	ZeroMemory(&pi, sizeof(pi));
+	si.dwFlags = STARTF_USESHOWWINDOW;
+	si.wShowWindow = SW_HIDE;
+	string cmd_str = "cmd.exe /c \"curl -s https://api.github.com/repos/PRXOR/FCMC/releases/latest | findstr \"browser_download_url\" > tmp.txt\"";
+	CreateProcess(NULL, const_cast<LPSTR>(cmd_str.c_str()), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+	WaitForSingleObject(pi.hProcess, INFINITE);
+	CloseHandle(pi.hProcess);
+	CloseHandle(pi.hThread);
+	Sleep(3000);
 	freopen_s(&stream, "tmp.txt", "r", stdin);
 	string tmp;
 	cin >> tmp;//前面的无用内容
@@ -1772,11 +1786,11 @@ bool Update()
 	cin.clear();
 	freopen_s(&stream, "CON", "r", stdin);
 	remove("tmp.txt");
-	if (nv == ver) return true;
-	string cmd_str = "curl -L " + tmp + " -o FCMC.zip";
+	if (nv == ver) return true;//已是最新版本
+	cmd_str = "curl -L " + tmp + " -o FCMC.zip";
 	system(cmd_str.c_str());//下载
 	system("start powershell Expand-Archive -Path 'FCMC.zip' -DestinationPath '.' -Force");//解压
-	Sleep(3000);//等待解压完成
+	Sleep(3000);//等待解压完成，不然会出现文件找不到
 	remove("FCMC.zip");//删除压缩包
 	return false;
 }
