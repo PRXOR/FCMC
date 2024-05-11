@@ -29,6 +29,7 @@ DWORD pid;//线程ID
 mutex mtx;//互斥锁
 condition_variable cv;//条件变量
 IMAGE bk0, bk2, bk4;//背景，双人棋盘，四人棋盘
+string ver = "0.5.6";//版本号
 
 static void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg) //新版png（透明图片）放置函数，抄来的
 {
@@ -155,6 +156,7 @@ static void Start_Play();//背景音乐播放函数
 
 void Setting();//设置
 void HISTORY();//复盘函数
+bool Update();//更新函数
 void About();//关于函数
 void PRINT_main();//打印主界面
 vector<Pos> Record::Go_Path = {};
@@ -269,6 +271,14 @@ void Pub::Game_Initialize()
 	freopen_s(&stream, "CON", "r", stdin);
 	if (DO_REC) CreateDirectory("Records", NULL);
 	if (PLAY_BGM) hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)Start_Play, NULL, 0, &pid);//播放背景音乐
+	if (AutoUpdate)
+	{
+		if (!Update())
+		{
+			MessageBox(NULL, _T("检测到新版本，已自动更新"), _T("更新"), MB_SYSTEMMODAL);
+			exit(0);
+		}
+	}
 	loadimage(&bk0, _T("Resources/background0.png"), 1080, 720);//加载背景图片
 	loadimage(&bk2, _T("Resources/background3.jpg"), 560, 720);//加载双人棋盘图片
 	loadimage(&bk4, _T("Resources/background6.png"), 720, 720);//加载四人棋盘图片
@@ -1730,7 +1740,8 @@ void About()
 	button(_sx + 280, 300, 80, 80, " ", RGB(200, 200, 200), 40);
 	f.lfHeight = 32;
 	settextstyle(&f);
-	outtextxy(_sx, _sy + 2 * _d, "Version 0.5.6");//版本号
+	string vs = "Version "+ver;
+	outtextxy(_sx, _sy + 2 * _d, vs.c_str());//版本号
 	string bd = "Build " + (string)__DATE__ + "  " + (string)__TIME__;//编译时间
 	outtextxy(_sx, _sy + 3 * _d, bd.c_str());
 	outtextxy(_sx, _sy + 4 * _d, "Copyright 2024 PRXOR. All rights reserved.");//版权
@@ -1741,7 +1752,31 @@ void About()
 		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
 		{
 			if (400 <= msg.x && msg.x <= 680 && 600 <= msg.y && msg.y <= 680) return;
+			if (150 <= msg.x && msg.x <= 410 && 300 <= msg.y && msg.y <= 380)
+			{
+				if (Update()) button(_sx + 280, 300, 80, 80, "√", RGB(20, 200, 20), 40);
+				else button(_sx + 280, 300, 200, 80, "最新版本已下载", RGB(200, 20, 20), 25);
+			}
 		}
 	}
 	return;
+}
+bool Update()
+{
+	system("curl -s https://api.github.com/repos/PRXOR/FCMC/releases/latest | findstr \"browser_download_url\" > tmp.txt");
+	freopen_s(&stream, "tmp.txt", "r", stdin);
+	string tmp;
+	cin >> tmp;//前面的无用内容
+	cin >> tmp;
+	string nv = tmp.substr(tmp.find("download") + 10, 5);//新版本号
+	cin.clear();
+	freopen_s(&stream, "CON", "r", stdin);
+	remove("tmp.txt");
+	if (nv == ver) return true;
+	string cmd_str = "curl -L " + tmp + " -o FCMC.zip";
+	system(cmd_str.c_str());//下载
+	system("start powershell Expand-Archive -Path 'FCMC.zip' -DestinationPath '.' -Force");//解压
+	Sleep(3000);//等待解压完成
+	remove("FCMC.zip");//删除压缩包
+	return false;
 }
