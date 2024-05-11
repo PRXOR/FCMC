@@ -29,7 +29,7 @@ DWORD pid;//线程ID
 mutex mtx;//互斥锁
 condition_variable cv;//条件变量
 IMAGE bk0, bk2, bk4;//背景，双人棋盘，四人棋盘
-string ver = "0.5.6";//版本号
+string ver = "0.6.1";//版本号
 
 static void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg) //新版png（透明图片）放置函数，抄来的
 {
