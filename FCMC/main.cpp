@@ -24,12 +24,13 @@ const int _CN = 25;//棋子数量
 int np, tp, Tp, MAX_STEPS, MAX_JUMPS, REST_STEPS, STEPS_STATUS = 0;//玩家数量，剩余玩家数量，总玩家数量，最大步数，最大跳过次数，剩余步数，步数状态
 bool supermode, historymode, showmode, AutoUpdate, DO_REC, PLAY_BGM, PLAY_SOUND;//超级模式，复盘模式，全明模式，自动更新，是否记录，是否播放背景音乐，是否播放音效
 FILE* stream;//文件流
+ExMessage msg;//鼠标消息
 HANDLE hThread;//线程句柄
 DWORD pid;//线程ID
 mutex mtx;//互斥锁
 condition_variable cv;//条件变量
 IMAGE bk0, bk2, bk4;//背景，双人棋盘，四人棋盘
-string ver = "0.6.2";//版本号
+string ver = "0.6.3";//版本号
 
 static void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg) //新版png（透明图片）放置函数，抄来的
 {
@@ -153,12 +154,11 @@ public:
 	void MC();//主函数
 } PLAY4, H4;
 static void Start_Play();//背景音乐播放函数
-
+static void MyExec(string cmd);//隐藏黑框执行命令行
 void Setting();//设置
 void HISTORY();//复盘函数
 bool Update();//更新函数
 void About();//关于函数
-void PRINT_main();//打印主界面
 vector<Pos> Record::Go_Path = {};
 map< pair<int, int>, vector< pair<int, int> > > Pub::NA = {};
 vector<int> Pub::_2ROAD[8] = {}, Pub::_4ROAD[20] = {};
@@ -176,63 +176,56 @@ int main()
 	Sleep(500);
 	cleardevice();
 	int mode = 0, _dx = 170, _sx = 40, _sy = 130, _x = 150, _y = 60;
-	ExMessage msg;
-	PRINT_main();
+	int ft = 1, did = 0;
 	while (1)
 	{
 		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
 		{
-			for (mode = 1; mode <= 6 && !(_sx + _dx * (mode - 1) <= msg.x && msg.x <= _sx + _dx * (mode - 1) + _x && _sy <= msg.y && msg.y <= _sy + _y); mode++) {}
-			if (_sx + 900 <= msg.x && msg.x <= _x + 1000 && 50 <= msg.y && msg.y <= 110) mode = 0;
-			if (_sx <= msg.x && msg.x <= _sx + 100 && 50 <= msg.y && msg.y <= 110) mode = -1;
+			did = 1;
+			for (mode = 1; mode <= 6 && !IS_MSG(msg, _sx + _dx * (mode - 1), _x, _sy, _y); mode++) {}
+			if (IS_MSG(msg, _sx + 900, 50, 100, 60)) mode = 0;
+			if (IS_MSG(msg, _sx, 50, 100, 60)) mode = -1;
 			switch (mode)
 			{
 			case -1:
 				button(_sx, 50, 100, 60, "关于", RGB(100, 100, 100), 30);
 				Sleep(200);
 				About();
-				PRINT_main();
 				break;
 			case 0:
 				button(_sx + 900, 50, 100, 60, "设置", RGB(100, 100, 100), 30);
 				Sleep(200);
 				Setting();
-				PRINT_main();
 				break;
 			case 1:
 				button(_sx, _sy, _x, _y, "全暗双人", RGB(100, 100, 100), 25);
 				supermode = 0, tp = 2, Tp = 2, historymode = 0, showmode = 0;
 				Sleep(200);
 				PLAY2.MC();
-				PRINT_main();
 				break;
 			case 2:
 				button(_sx + _dx, _sy, _x, _y, "随机双人", RGB(100, 100, 100), 25);
 				supermode = 1, tp = 2, Tp = 2, historymode = 0, showmode = 0;
 				Sleep(200);
 				PLAY2.MC();
-				PRINT_main();
 				break;
 			case 3:
 				button(_sx + _dx * 2, _sy, _x, _y, "全暗四人", RGB(100, 100, 100), 25);
 				supermode = 0, tp = 4, Tp = 4, historymode = 0, showmode = 0;
 				Sleep(200);
 				PLAY4.MC();
-				PRINT_main();
 				break;
 			case 4:
 				button(_sx + _dx * 3, _sy, _x, _y, "随机四人", RGB(100, 100, 100), 25);
 				supermode = 1, tp = 4, Tp = 4, historymode = 0, showmode = 0;
 				Sleep(200);
 				PLAY4.MC();
-				PRINT_main();
 				break;
 			case 5:
 				button(_sx + _dx * 4, _sy, _x, _y, "加载复盘", RGB(100, 100, 100), 25);
 				historymode = 1;
 				Sleep(200);
 				HISTORY();
-				PRINT_main();
 				break;
 			case 6:
 				button(_sx + _dx * 5, _sy, _x, _y, "退出游戏", RGB(100, 100, 100), 25);
@@ -246,6 +239,23 @@ int main()
 				Sleep(200);
 				return 0;
 			}
+		}
+		if (ft || did)
+		{
+			ft = 0, did = 0;
+			BeginBatchDraw();
+			cleardevice();
+			putimage(0, 0, &bk0);
+			button(_sx + 110, 50, 780, 60, "请选择游玩模式:", RGB(200, 20, 20), 30);
+			button(_sx + 900, 50, 100, 60, "设置", RGB(100, 100, 200), 30);
+			button(_sx, 50, 100, 60, "关于", RGB(100, 100, 200), 30);
+			button(_sx, _sy, _x, _y, "全暗双人", RGB(20, 200, 20), 25);
+			button(_sx + _dx, _sy, _x, _y, "随机双人", RGB(20, 200, 20), 25);
+			button(_sx + _dx * 2, _sy, _x, _y, "全暗四人", RGB(20, 200, 20), 25);
+			button(_sx + _dx * 3, _sy, _x, _y, "随机四人", RGB(20, 200, 20), 25);
+			button(_sx + _dx * 4, _sy, _x, _y, "加载复盘", RGB(20, 200, 20), 25);
+			button(_sx + _dx * 5, _sy, _x, _y, "退出游戏", RGB(20, 200, 20), 25);
+			EndBatchDraw();
 		}
 	}
 	return 0;
@@ -644,7 +654,6 @@ void _2::MC()
 	Record_Initialize();//初始化记录
 	if (supermode) Go_Super();
 	Go_Path.clear();
-	ExMessage msg;
 	int sc = -1;
 	np = 1;
 	STEPS_STATUS = 0;
@@ -847,7 +856,6 @@ void _4::PRINTNOW()
 	BeginBatchDraw();
 	cleardevice();
 	putimage(0, 0, &bk0);
-//	putimage(180, 0, &bk4);
 	putnewbk(NULL, 180, 0, &bk4);
 	setcolor(RGB(80, 20, 20));
 	setfillcolor(RED);
@@ -992,7 +1000,6 @@ void _4::MC()
 	Record_Initialize();//初始化记录
 	if (supermode) Go_Super();
 	Go_Path.clear();
-	ExMessage msg;
 	np = 1;
 	STEPS_STATUS = 0;
 	PRINTNOW();
@@ -1339,7 +1346,6 @@ void HISTORY()
 	}
 	int total_page = (N_R - 1) / EP + 1;//总页数
 	bool ft = 1, did = 0;
-	ExMessage msg;
 	char tname[100];
 	while (1)
 	{
@@ -1615,10 +1621,7 @@ void HISTORY()
 			if (PAGE != 1) button(30, 30, 80, 50, "上一页", RGB(100, 100, 100), 25);
 			if (PAGE != total_page) button(970, 30, 80, 50, "下一页", RGB(100, 100, 100), 25);
 			button(30, 650, 60, 40, "返回", RGB(100, 100, 100), 25);
-			string tmp = "复盘列表:";
-			tmp += to_string(PAGE);
-			tmp += "/";
-			tmp += to_string(total_page);
+			string tmp = "复盘列表:"+to_string(PAGE)+"/"+to_string(total_page);
 			strcpy_s(tname, tmp.c_str());
 			button(120, 30, 840, 50, tname, RGB(255, 0, 0), 25);
 			for (int i = (PAGE - 1) * EP; i < min(PAGE * EP, N_R); i++)
@@ -1632,7 +1635,6 @@ void HISTORY()
 }
 void Setting()
 {
-	ExMessage msg;
 	IMAGE on, off, select;
 	loadimage(&on, "Resources/on.png", 120, 60);
 	loadimage(&off, "Resources/off.png", 120, 60);
@@ -1701,70 +1703,73 @@ void Setting()
 		}
 	}
 }
-void PRINT_main()
-{
-	int _dx = 170, _sx = 40, _sy = 130, _x = 150, _y = 60;
-	BeginBatchDraw();
-	cleardevice();
-	putimage(0, 0, &bk0);
-	button(_sx + 110, 50, 780, 60, "请选择游玩模式:", RGB(200, 20, 20), 30);
-	button(_sx + 900, 50, 100, 60, "设置", RGB(100, 100, 200), 30);
-	button(_sx, 50, 100, 60, "关于", RGB(100, 100, 200), 30);
-	button(_sx, _sy, _x, _y, "全暗双人", RGB(20, 200, 20), 25);
-	button(_sx + _dx, _sy, _x, _y, "随机双人", RGB(20, 200, 20), 25);
-	button(_sx + _dx * 2, _sy, _x, _y, "全暗四人", RGB(20, 200, 20), 25);
-	button(_sx + _dx * 3, _sy, _x, _y, "随机四人", RGB(20, 200, 20), 25);
-	button(_sx + _dx * 4, _sy, _x, _y, "加载复盘", RGB(20, 200, 20), 25);
-	button(_sx + _dx * 5, _sy, _x, _y, "退出游戏", RGB(20, 200, 20), 25);
-	EndBatchDraw();
-}
 void About()
 {
-	BeginBatchDraw();
-	cleardevice();
-	putimage(0, 0, &bk0);
-	ExMessage msg;
-	button(450, 50, 180, 100, "关 于", RGB(100, 100, 200), 50);
-	LOGFONT f;
-	gettextstyle(&f);
-	f.lfHeight = 60;
-	_tcscpy_s(f.lfFaceName, "黑体");
-	f.lfQuality = ANTIALIASED_QUALITY;
-	settextstyle(&f);
+	int ft = 1, did = 0, updated = 0;
 	int _sx = 150, _sy = 300, _d = 50;
-	outtextxy(_sx, 160, "四国翻棋");
-	f.lfHeight = 40;
-	settextstyle(&f);
-	outtextxy(_sx, 230, "Four Country Military Chess (FCMC)");
-	button(_sx, 300, 260, 80, "检 查 更 新", RGB(200, 150, 0), 40);
-	button(_sx + 280, 300, 80, 80, " ", RGB(200, 200, 200), 40);
-	f.lfHeight = 32;
-	settextstyle(&f);
-	string vs = "Version "+ver;
-	outtextxy(_sx, _sy + 2 * _d, vs.c_str());//版本号
+	string vs = "Version " + ver;
 	string bd = "Build " + (string)__DATE__ + "  " + (string)__TIME__;//编译时间
-	outtextxy(_sx, _sy + 3 * _d, bd.c_str());
-	outtextxy(_sx, _sy + 4 * _d, "Copyright 2024 PRXOR. All rights reserved.");//版权
-	button(400, 600, 280, 80, "确   定", RGB(50, 200, 50), 40);
-	EndBatchDraw();
+	string st = "Github Address:", ga = "https://github.com/PRXOR/FCMC";
 	while (1)
 	{
 		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
 		{
-			if (400 <= msg.x && msg.x <= 680 && 600 <= msg.y && msg.y <= 680) return;
-			if (150 <= msg.x && msg.x <= 410 && 300 <= msg.y && msg.y <= 380)
+			did = 1;
+			if (IS_MSG(msg, 400, 600, 280, 80)) return;
+			if (IS_MSG(msg, _sx, 300, 260, 80))
 			{
-				if (Update()) button(_sx + 280, 300, 80, 80, "√", RGB(20, 200, 20), 40);
-				else button(_sx + 280, 300, 200, 80, "最新版本已下载", RGB(200, 20, 20), 25);
+				if (Update()) updated = 1;
+				else updated = 2;
 			}
+			if (IS_MSG(msg, _sx+ textwidth(st.c_str()), _sy + 4 * _d, textwidth(ga.c_str()), textheight(ga.c_str()))) ShellExecute(NULL, "open", ga.c_str(), NULL, NULL, SW_SHOWNORMAL);
+		}
+		if (ft || did)
+		{
+			ft = 0, did = 0;
+			BeginBatchDraw();
+			cleardevice();
+			putimage(0, 0, &bk0);
+			button(450, 50, 180, 100, "关 于", RGB(100, 100, 200), 50);
+			LOGFONT f;
+			gettextstyle(&f);
+			f.lfHeight = 60;
+			_tcscpy_s(f.lfFaceName, "黑体");
+			f.lfQuality = ANTIALIASED_QUALITY;
+			settextstyle(&f);
+			outtextxy(_sx, 160, "四国翻棋");
+			f.lfHeight = 40;
+			settextstyle(&f);
+			outtextxy(_sx, 230, "Four Country Military Chess (FCMC)");
+			button(_sx, 300, 260, 80, "检 查 更 新", RGB(200, 150, 0), 40);
+			switch (updated)
+			{
+			case 0:
+				button(_sx + 280, 300, 80, 80, " ", RGB(200, 200, 200), 40);
+				break;
+			case 1:
+				button(_sx + 280, 300, 80, 80, "√", RGB(20, 200, 20), 40);
+				break;
+			case 2:
+				button(_sx + 280, 300, 450, 80, "最新版本已下载，重启程序以应用更改", RGB(200, 20, 20), 25);
+				break;
+			}
+			f.lfHeight = 32;
+			settextstyle(&f);
+			outtextxy(_sx, _sy + 2 * _d, vs.c_str());//版本号
+			outtextxy(_sx, _sy + 3 * _d, bd.c_str());
+			outtextxy(_sx, _sy + 4 * _d, st.c_str());
+			settextcolor(RGB(20, 20, 200));
+			outtextxy(_sx + textwidth("Github Address:"), _sy + 4 * _d, ga.c_str());//Github地址
+			settextcolor(RGB(0, 0, 0));
+			outtextxy(_sx, _sy + 5 * _d, "Copyright 2024 PRXOR. All rights reserved.");//版权
+			button(400, 600, 280, 80, "确   定", RGB(50, 200, 50), 40);
+			EndBatchDraw();
 		}
 	}
 	return;
 }
-bool Update()
+void MyExec(string cmd_str)
 {
-	putimage(0, 0, &bk0);
-	button(400, 300, 280, 120, "正在检查更新...", RGB(255, 255, 0), 35);
 	STARTUPINFO si;
 	PROCESS_INFORMATION pi;
 	ZeroMemory(&si, sizeof(si));
@@ -1772,25 +1777,28 @@ bool Update()
 	ZeroMemory(&pi, sizeof(pi));
 	si.dwFlags = STARTF_USESHOWWINDOW;
 	si.wShowWindow = SW_HIDE;
-	string cmd_str = "cmd.exe /c \"curl -s https://api.github.com/repos/PRXOR/FCMC/releases/latest | findstr \"browser_download_url\" > tmp.txt\"";
 	CreateProcess(NULL, const_cast<LPSTR>(cmd_str.c_str()), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
 	WaitForSingleObject(pi.hProcess, INFINITE);
 	CloseHandle(pi.hProcess);
 	CloseHandle(pi.hThread);
-	Sleep(3000);
+}
+bool Update()
+{
+	putimage(0, 0, &bk0);
+	button(400, 300, 280, 120, "正在检查更新...", RGB(255, 255, 0), 35);
+	MyExec("cmd.exe /c \"curl -s https://api.github.com/repos/PRXOR/FCMC/releases/latest | findstr \"browser_download_url\" > tmp.txt\"");
 	freopen_s(&stream, "tmp.txt", "r", stdin);
 	string tmp;
 	cin >> tmp;//前面的无用内容
 	cin >> tmp;
-	string nv = tmp.substr(tmp.find("download") + 10, 5);//新版本号
+	uint64_t posd = tmp.find("download");
+	string nv = tmp.substr(posd + 10, tmp.find("/", posd + 10) - posd - 10);//新版本号
 	cin.clear();
 	freopen_s(&stream, "CON", "r", stdin);
 	remove("tmp.txt");
 	if (nv == ver) return true;//已是最新版本
-	cmd_str = "curl -L " + tmp + " -o FCMC.zip";
-	system(cmd_str.c_str());//下载
-	system("start powershell Expand-Archive -Path 'FCMC.zip' -DestinationPath '.' -Force");//解压
-	Sleep(3000);//等待解压完成，不然会出现文件找不到
+	MyExec("cmd.exe /c \"curl -L " + tmp + " -o FCMC.zip\"");//下载
+	MyExec("powershell Expand-Archive -Path 'FCMC.zip' -DestinationPath '.' -Force");//解压
 	remove("FCMC.zip");//删除压缩包
 	return false;
 }
