@@ -1,5 +1,5 @@
 ﻿#include <iostream>
-#include <fstream>
+#include <stdio.h>
 #include <map>
 #include <queue>
 #include <string>
@@ -23,16 +23,14 @@ using namespace std;
 const int _CN = 25;//棋子数量
 int np, tp, Tp, MAX_STEPS, MAX_JUMPS, REST_STEPS, STEPS_STATUS = 0;//玩家数量，剩余玩家数量，总玩家数量，最大步数，最大跳过次数，剩余步数，步数状态
 bool supermode, historymode, showmode, AutoUpdate, DO_REC, PLAY_BGM, PLAY_SOUND;//超级模式，复盘模式，全明模式，自动更新，是否记录，是否播放背景音乐，是否播放音效
-//FILE* stream;//文件流
-ifstream is;
-ofstream os;
+FILE* stream;//文件流
 ExMessage msg;//鼠标消息
 HANDLE hThread;//线程句柄
 DWORD pid;//线程ID
 mutex mtx;//互斥锁
 condition_variable cv;//条件变量
 IMAGE bk0, bk2, bk4;//背景，双人棋盘，四人棋盘
-string ver = "0.6.4";//版本号
+string ver = "0.6.3";//版本号
 
 static void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg) //新版png（透明图片）放置函数，抄来的
 {
@@ -231,13 +229,13 @@ int main()
 				break;
 			case 6:
 				button(_sx + _dx * 5, _sy, _x, _y, "退出游戏", RGB(100, 100, 100), 25);
-				os.open("settings.config", ios_base::out | ios_base::binary);//保存游戏设置
+				freopen_s(&stream, "settings.config", "w", stdout);//保存游戏设置
 				string sts[7] = { "DO_REC","AutoUpdate","PLAY_BGM","PLAY_SOUND","MAX_STEPS","MAX_JUMPS","REST_STEPS" };
 				bool* op[4] = { &DO_REC, &AutoUpdate, &PLAY_BGM, &PLAY_SOUND };
 				int* num[3] = { &MAX_STEPS, &MAX_JUMPS, &REST_STEPS };
-				for (int i = 0; i < 7; i++) os << sts[i] << " " << ((i < 4) ? *op[i] : *num[i - 4]) << endl;
-				os << "END 0";
-				os.close();
+				for (int i = 0; i < 7; i++) printf("%s %d\n", sts[i].c_str(), (int)((i < 4) ? *op[i] : *num[i - 4]));
+				printf("END 0");
+				freopen_s(&stream, "CON", "w", stdout);
 				Sleep(200);
 				return 0;
 			}
@@ -269,21 +267,21 @@ void Pub::Game_Initialize()
 	loadimage(&bk0, _T("Resources/background0.png"), 1080, 720);//加载背景图片
 	loadimage(&bk2, _T("Resources/background3.jpg"), 560, 720);//加载双人棋盘图片
 	loadimage(&bk4, _T("Resources/background6.png"), 720, 720);//加载四人棋盘图片
-	is.open("settings.config");//读取游戏设置
+	freopen_s(&stream, "settings.config", "r", stdin);//读取游戏设置
 	string key;
-	while (is >> key)
+	while (cin >> key)
 	{
-		if (key == "DO_REC") is >> DO_REC;
-		if (key == "AutoUpdate") is >> AutoUpdate;
-		if (key == "MAX_STEPS") is >> MAX_STEPS;
-		if (key == "MAX_JUMPS") is >> MAX_JUMPS;
-		if (key == "REST_STEPS") is >> REST_STEPS;
-		if (key == "PLAY_BGM") is >> PLAY_BGM;
-		if (key == "PLAY_SOUND") is >> PLAY_SOUND;
+		if (key == "DO_REC") cin >> DO_REC;
+		if (key == "AutoUpdate") cin >> AutoUpdate;
+		if (key == "MAX_STEPS") cin >> MAX_STEPS;
+		if (key == "MAX_JUMPS") cin >> MAX_JUMPS;
+		if (key == "REST_STEPS") cin >> REST_STEPS;
+		if (key == "PLAY_BGM") cin >> PLAY_BGM;
+		if (key == "PLAY_SOUND") cin >> PLAY_SOUND;
 		if (key == "END") break;
 	}
-	is.clear();
-	is.close();
+	cin.clear();
+	freopen_s(&stream, "CON", "r", stdin);
 	if (DO_REC) CreateDirectory("Records", NULL);
 	if (PLAY_BGM) hThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)Start_Play, NULL, 0, &pid);//播放背景音乐
 	if (AutoUpdate)
@@ -493,16 +491,16 @@ int Pub::N_KILL(Chess c1, Chess c2)
 void Pub::Go_Super()
 {
 	int N = rand() % 16 + 4;//随机翻开棋子数
-	os << "N " << N << endl << "show" << endl;
+	printf("N %d\nshow\n", N);
 	for (int i = 1; i <= Tp; i++)
 	{
 		int re = N, rj = 0;
 		while(re)
 		{
 			rj = rand() % 25;
-			if (P[i].MyChess[rj].cflag == 0) P[i].MyChess[rj].cflag = 2, re--, os << rj << ' ';
+			if (P[i].MyChess[rj].cflag == 0) P[i].MyChess[rj].cflag = 2, re--, printf("%d ", rj);
 		}
-		os << endl;
+		printf("\n");
 	}
 }
 void _2::PRINTNOW()
@@ -1273,50 +1271,51 @@ void Record::Record_Initialize()
 	strftime(tmp, sizeof(tmp), "%Y-%m-%d-%H-%M-%S", &nowTime);//获取格式化时间
 	NAME += string(tmp);
 	NAME += ".rec";
-	os.open(NAME);//打开文件
-	os << "REC " << Tp << " " << supermode << endl;
+	char file_name[100];
+	strcpy_s(file_name, NAME.c_str());
+	freopen_s(&stream, file_name, "w", stdout);//重定向输出到存档文件
+	printf("REC %d %d\nplayers\n", Tp, supermode);//开始记录
 	for (int i = 1; i <= Tp; i++)
 	{
-		for (int j = 0; j < _CN; j++) os << P[i].MyChess[j].level << " ";
-		os << endl;
+		for (int j = 0; j < _CN; j++) printf("%d ", P[i].MyChess[j].level);
+		printf("\n");
 	}
 }
 void Record::Record_End(int who)
 {
-	os << "win " << who << endl;
-	os.close();
+	printf("win %d\n", who);
+	freopen_s(&stream, "CON", "w", stdout);
 }
 void Record::Move(int lsp, int lsc, int G, int X, int Y)//记录移动和路径
 {
-	os << "move " << lsp << " " << lsc << " " << G << " " << X << " " << Y << endl;
-	os << "path " << Go_Path.size() << endl;
-	for (vector<Pos>::iterator i = Go_Path.begin(); i != Go_Path.end(); i++) os << Mix(*i) << " ";
-	os << endl;
+	printf("move %d %d %d %d %d\n", lsp, lsc, G, X, Y);
+	printf("path %llu\n", Go_Path.size());
+	for (vector<Pos>::iterator i = Go_Path.begin(); i != Go_Path.end(); i++) printf("%d ", Mix(*i));
+	printf("\n");
 }
 void Record::Show(int lsp, int lsc)
 {
-	os << "show " << lsp << " " << lsc << endl;
+	printf("show %d %d\n", lsp, lsc);
 }
 void Record::Dead(int lsp, int lsc)
 {
-	os << "dead " << lsp << " " << lsc << endl;
+	printf("dead %d %d\n", lsp, lsc);
 }
 void Record::RS(int sound)
 {
-	os << "sound " << sound << endl;
+	printf("sound %d\n", sound);
 }
 int Record::Step()
 {
 	cnt_step++;
-	os << "step " << cnt_step << endl;
 	if (cnt_step > MAX_STEPS) return 2;//超过步数限制
 	if (cnt_step > MAX_STEPS - REST_STEPS) return 1;//接近步数限制
-	os << "step " << cnt_step << endl;
+	printf("step %d\n", cnt_step);
 	return 0;
 }
 void Record::Player_Dead(int who)
 {
-	os << "pd " << who << endl;
+	printf("pd %d\n", who);
 }
 void HISTORY()
 {
@@ -1372,59 +1371,59 @@ void HISTORY()
 					strcpy_s(tname, Recs[i].c_str());
 					button(120, 100 + 50 * (i - (PAGE - 1) * EP), 840, 45, tname, RGB(100, 100, 100));
 					Sleep(300);
-					is.open(tname);
+					freopen_s(&stream, tname, "r", stdin);
 					cleardevice();
 					string key;
-					is >> key;
+					cin >> key;
 					if (key != "REC")//校验
 					{
 						button(40, 40, 1000, 50, "ERROR!NOT A RECORD FILE!", RGB(255, 255, 0), 30);
-						is.clear();
-						is.close();
+						cin.clear();
+						freopen_s(&stream, "CON", "r", stdin);
 						Sleep(1000);
 						break;
 					}
-					is >> Tp >> supermode;
+					cin >> Tp >> supermode;
 					tp = Tp, np = 0, showmode = 0, STEPS_STATUS = 0;
 					Pub::Go_Path.clear();
 					int ns = 0, op = 0, go_back = 0, lsp, lsc, g, x, y;
-					is >> key;
+					cin >> key;
 					for (int j = 1; j <= Tp; j++)//读入玩家信息
 					{
 						P[j].Init(j);
-						for (int k = 0; k < _CN; k++) is >> P[j].MyChess[k].level;
+						for (int k = 0; k < _CN; k++) cin >> P[j].MyChess[k].level;
 					}
 					if (supermode)//超级模式信息读入
 					{
-						is >> key;
+						cin >> key;
 						if (key != "N")
 						{
 							button(40, 40, 1000, 50, "ERROR!AN OLD SUPER RECORD!", RGB(255, 255, 0), 30);
-							is.clear();
-							is.close();
+							cin.clear();
+							freopen_s(&stream, "CON", "r", stdin);
 							Sleep(1000);
 							break;
 						}
 						int N;
-						is >> N;
-						is >> key;
+						cin >> N;
+						cin >> key;
 						for (int i = 1; i <= Tp; i++)
 						{
 							for (int j = 0; j < N; j++)
 							{
 								int rj;
-								is >> rj;
+								cin >> rj;
 								P[i].MyChess[rj].cflag = 2;
 							}
 						}
 					}
 					if (Tp == 4)
 					{
-						while (key != "win" && go_back == 0 && is >> key)
+						while (key != "win" && go_back == 0 && cin >> key)
 						{
 							if (key == "sound")
 							{
-								is >> op;
+								cin >> op;
 								Pub::PS(op);
 								H4.PRINTNOW();
 								BeginBatchDraw();
@@ -1475,54 +1474,54 @@ void HISTORY()
 							}
 							else if (key == "step")
 							{
-								is >> ns;
+								cin >> ns;
 								H4.GO_NEXT();
 							}
 							else if (key == "pd")
 							{
-								is >> op;
+								cin >> op;
 								P[op].live = 0;
 								for (int k = 0; k < _CN; k++) P[op].MyChess[k].live = 0;
 							}
 							else if (key == "move")
 							{
-								is >> lsp >> lsc >> g >> x >> y;
+								cin >> lsp >> lsc >> g >> x >> y;
 								P[lsp].MyChess[lsc].cpg = g, P[lsp].MyChess[lsc].cpx = x, P[lsp].MyChess[lsc].cpy = y;
-								is >> key;
-								is >> op;
+								cin >> key;
+								cin >> op;
 								Pub::Go_Path.clear();//清空并读入路径
 								for (int j = 0; j < op; j++)
 								{
 									int mixed;
-									is >> mixed;
+									cin >> mixed;
 									Pub::Go_Path.push_back(Pub::UnMix(mixed));
 								}
 							}
 							else if (key == "show")
 							{
-								is >> lsp >> lsc;
+								cin >> lsp >> lsc;
 								P[lsp].MyChess[lsc].cflag = 2;
 							}
 							else if (key == "dead")
 							{
-								is >> lsp >> lsc;
+								cin >> lsp >> lsc;
 								P[lsp].MyChess[lsc].live = 0;
 								P[lsp].DeadChess.push_back(Pub::_4LEVELMAP[P[lsp].MyChess[lsc].level]);
 							}
 						}
 						if (go_back) continue;
 						if (key != "win") op = 0;
-						else is >> op;
+						else cin >> op;
 						H4.PRINTNOW();
 						Pub::WIN(op);
 					}
 					else 
 					{
-						while (key != "win" && go_back == 0 && is >> key)
+						while (key != "win" && go_back == 0 && cin >> key)
 						{
 							if (key == "sound")
 							{
-								is >> op;
+								cin >> op;
 								Pub::PS(op);
 								H2.PRINTNOW();
 								BeginBatchDraw();//绘制复盘控制相关信息
@@ -1573,43 +1572,43 @@ void HISTORY()
 							}
 							else if (key == "step")
 							{
-								is >> ns;
+								cin >> ns;
 								np = 3 - np;
 							}
 							else if (key == "move")
 							{
-								is >> lsp >> lsc >> g >> x >> y;
+								cin >> lsp >> lsc >> g >> x >> y;
 								P[lsp].MyChess[lsc].cpg = g, P[lsp].MyChess[lsc].cpx = x, P[lsp].MyChess[lsc].cpy = y;
-								is >> key;
-								is >> op;
+								cin >> key;
+								cin >> op;
 								Pub::Go_Path.clear();//清空并读入路径
 								for (int j = 0; j < op; j++)
 								{
 									int mixed;
-									is >> mixed;
+									cin >> mixed;
 									Pub::Go_Path.push_back(Pub::UnMix(mixed));
 								}
 							}
 							else if (key == "show")
 							{
-								is >> lsp >> lsc;
+								cin >> lsp >> lsc;
 								P[lsp].MyChess[lsc].cflag = 2;
 							}
 							else if (key == "dead")
 							{
-								is >> lsp >> lsc;
+								cin >> lsp >> lsc;
 								P[lsp].MyChess[lsc].live = 0;
 								P[lsp].DeadChess.push_back(Pub::_4LEVELMAP[P[lsp].MyChess[lsc].level]);
 							}
 						}
 						if (go_back) continue;
 						if (key != "win") op = 0;
-						else is >> op;
+						else cin >> op;
 						H2.PRINTNOW();
 						Pub::WIN(op);
 					}
-					is.clear();
-					is.close();
+					cin.clear();
+					freopen_s(&stream, "CON", "r", stdin);
 				}
 			}
 		}
@@ -1788,14 +1787,14 @@ bool Update()
 	putimage(0, 0, &bk0);
 	button(400, 300, 280, 120, "正在检查更新...", RGB(255, 255, 0), 35);
 	MyExec("cmd.exe /c \"curl -s https://api.github.com/repos/PRXOR/FCMC/releases/latest | findstr \"browser_download_url\" > tmp.txt\"");
-	is.open("tmp.txt");
+	freopen_s(&stream, "tmp.txt", "r", stdin);
 	string tmp;
-	is >> tmp;//前面的无用内容
-	is >> tmp;
+	cin >> tmp;//前面的无用内容
+	cin >> tmp;
 	uint64_t posd = tmp.find("download");
 	string nv = tmp.substr(posd + 10, tmp.find("/", posd + 10) - posd - 10);//新版本号
-	is.clear();
-	is.close();
+	cin.clear();
+	freopen_s(&stream, "CON", "r", stdin);
 	remove("tmp.txt");
 	if (nv == ver) return true;//已是最新版本
 	MyExec("cmd.exe /c \"curl -L " + tmp + " -o FCMC.zip\"");//下载
