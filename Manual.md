@@ -4,6 +4,9 @@
 ## 类设计
 共有2个结构体和5个类
 其中，```Record```是```Pub```的基类，```Pub```是```_2```和```_4```的基类
+
+每当游戏开始时，进入```main```函数之后，由玩家决定调用。
+分别有```_2```中的```MC()```函数和```_4```中的```MC()```以及```About()```/```Setting()```/```HISTORY()```等函数。
 ### Chess结构体
 ```cpp
 struct Chess
@@ -115,6 +118,18 @@ public:
 	void PRINTNOW();//打印当前棋盘及附加图像
 	void MC();//主函数
 } PLAY4, H4;//PLAY4用于游玩，H4用于四人模式的存档
+```
+### 其他独立函数
+```cpp
+static void putnewbk(IMAGE* dstimg, int x, int y, IMAGE* srcimg);//透明图片
+static bool IS_MSG(ExMessage msg, int spx, int spy, int lx, int ly);//判断鼠标点击是否在目标位置内
+static void button(int x, int y, int w, int h, const char* text, COLORREF col, int size = 20);//绘制带有文字和颜色的框
+static void Start_Play();//背景音乐播放函数
+static void MyExec(string cmd);//隐藏黑框执行命令行
+void Setting();//设置
+void HISTORY();//复盘函数
+bool Update();//更新函数
+void About();//关于函数
 ```
 ## 主要技术难点和实现方案/算法设计
 ### 技术难点
