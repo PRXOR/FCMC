@@ -1275,6 +1275,7 @@ void Record::Record_Initialize()
 	NAME += ".rec";
 	os.open(NAME);//打开文件
 	os << "REC " << Tp << " " << supermode << endl;
+	os << "players" << endl;
 	for (int i = 1; i <= Tp; i++)
 	{
 		for (int j = 0; j < _CN; j++) os << P[i].MyChess[j].level << " ";
@@ -1354,16 +1355,8 @@ void HISTORY()
 		if (peekmessage(&msg, EM_MOUSE) && msg.message == WM_LBUTTONDOWN)
 		{
 			did = 1;
-			if (PAGE != 1 && IS_MSG(msg, 30, 30, 80, 50))//上一页
-			{
-				PAGE--;
-				continue;
-			}
-			if (PAGE != total_page && IS_MSG(msg, 970, 30, 80, 50))//下一页
-			{
-				PAGE++;
-				continue;
-			}
+			if (PAGE != 1 && IS_MSG(msg, 30, 30, 80, 50)) PAGE--;
+			if (PAGE != total_page && IS_MSG(msg, 970, 30, 80, 50)) PAGE++;
 			if (IS_MSG(msg, 30, 650, 60, 40)) return;//返回
 			for (int i = (PAGE - 1) * EP; i < min(PAGE * EP, N_R); i++)
 			{
@@ -1372,6 +1365,7 @@ void HISTORY()
 					strcpy_s(tname, Recs[i].c_str());
 					button(120, 100 + 50 * (i - (PAGE - 1) * EP), 840, 45, tname, RGB(100, 100, 100));
 					Sleep(300);
+					is.clear();
 					is.open(tname);
 					cleardevice();
 					string key;
@@ -1445,6 +1439,8 @@ void HISTORY()
 										if (IS_MSG(msg, 30, 650, 60, 40))
 										{
 											go_back = 1;
+											is.clear();
+											is.close();
 											break;
 										}
 										if (IS_MSG(msg, 30, 70, 60, 30))
@@ -1543,6 +1539,8 @@ void HISTORY()
 										if (IS_MSG(msg, 990, 660, 60, 40))
 										{
 											go_back = 1;
+											is.clear();
+											is.close();
 											break;
 										}
 										if (IS_MSG(msg, 900, 340, 60, 30))
