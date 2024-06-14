@@ -12,7 +12,7 @@
 ```cpp
 struct Chess
 {
-	int level, cpg, cpx, cpy, cflag;//棋子大小，横竖坐标，被标记为
+	int level, cpg, cpx, cpy, cflag;//棋子大小，gxy坐标，被标记为
 	bool live;//是否存活
 	Chess(int le, int _g, int _x, int _y):level(le),cpg(_g),cpx(_x),cpy(_y),cflag(le == 10 ? 2 : 0),live(true){}//将第一排标记为叹号，军旗翻开
 	Chess():level(0),cpg(0),cpx(0),cpy(0),cflag(0),live(0){}
@@ -31,14 +31,18 @@ struct Pos
 class Player
 {
 public:
-	bool live=true;//初始存活
-	int initarray[_CN] = {}, deflevel[_CN] = { 10,20,20,20,21,21,32,32,32,33,33,33,34,34,34,35,35,36,36,37,37,38,38,39,40 };//旗雷炸兵排连营团旅师军司
-	int defposx[_CN] = { 6,1,1,1,1,1,2,2,2,3,3,3,3,4,4,4,5,5,5,5,5,6,6,6,6 }, defposy[_CN] = { 4,1,2,3,4,5,1,3,5,1,2,4,5,1,3,5,1,2,3,4,5,1,2,3,5 };//初始位置
-	int skiptimes = 0;//跳过次数
-	void Init(int ppos);//初始化
-	Chess MyChess[_CN] = {};//棋子
-	vector<string> DeadChess;//死亡棋子
-} P[5];//全局最多有玩家1-4
+	bool live=true;				//初始存活
+	int initarray[_CN] = {}, 
+		deflevel[_CN] = { 10,20,20,20,21,21,32,32,32,33,33,33,34,34,34,35,35,36,36,37,37,38,38,39,40 };
+								//旗雷炸兵排连营团旅师军司
+	int defposx[_CN] = { 6,1,1,1,1,1,2,2,2,3,3,3,3,4,4,4,5,5,5,5,5,6,6,6,6 }, 
+		defposy[_CN] = { 4,1,2,3,4,5,1,3,5,1,2,4,5,1,3,5,1,2,3,4,5,1,2,3,5 };		
+								//初始位置
+	int skiptimes = 0;			//跳过次数
+	void Init(int ppos);		//初始化(ppos是玩家的编号)
+	Chess MyChess[_CN] = {};	//棋子
+	vector<string> DeadChess;	//死亡棋子
+} P[5];							//全局最多有玩家1-4
 ```
 ### Record类(用于写入存档)
 ```cpp
@@ -50,7 +54,8 @@ public:
 	static int 	Mix(Pos P);				//混合坐标
 	static Pos 	UnMix(int mixed);		//解混合坐标
 	void 		Record_Initialize();	//初始化记录存档
-	static void Record_End(int who);	//记录结束
+	static void Record_End(int who);	//记录结束(who为获胜方)
+	//以下lsp为玩家编号，lsc为玩家旗子的编号，GXY代表要移动到的位置的坐标
 	void 		Move(int lsp, 
 					int lsc, 
 					int G, 
@@ -58,9 +63,9 @@ public:
 					int Y);				//记录移动
 	void 		Show(int lsp, int lsc);	//记录翻开
 	void		Dead(int lsp, int lsc);	//记录棋子死亡
-	static void RS(int sound);			//记录音效
+	static void RS(int sound);			//记录音效(sound为声音编号)
 	int 		Step();					//记录步数，返回步数状态
-	void 		Player_Dead(int who);	//记录玩家死亡
+	void 		Player_Dead(int who);	//记录玩家死亡(who为死去的玩家编号)
 };
 ```
 ### Pub类(继承Record，包含_2,_4的公共函数)
@@ -69,7 +74,7 @@ class Pub : public Record
 {
 public:
 	static map< pair<int, int>, vector< pair<int, int> > > 
-				 NA;									//非铁道普攻
+				 NA;							//非铁道普攻
 	static vector<int> 
 				 _2ROAD[8], 
 				 _4ROAD[20];					//分别为双人/四人铁道
@@ -80,16 +85,17 @@ public:
 				 XY[5];							//行营
 	string 		 P_Name[5] = { "","玩家1","玩家2","玩家3","玩家4" };
 												//玩家名称
-	static void  PS(int sound);					//播放音效
-	static void  WIN(int who);					//胜利
-	void 		 Draw_Arrow(int x1, 
-					int y1, 
-					int x2, 
-					int y2, 
-					int L);						//画箭头
-	bool 		 IS_VOID(int g, int x, int y);	//判断是否为空
-	bool 		 IS_DEAD(int p);				//判断玩家是否死亡
-	bool 		 NORMAL_GO(Chess A, Chess B);	//普通移动
+	static void  PS(int sound);					//播放音效(sound为声音编号)
+	static void  WIN(int who);					//胜利(who为获胜玩家)
+	void 		 Draw_Arrow(					//画箭头
+					int x1, 					//起始点横坐标
+					int y1,						//起始点纵坐标
+					int x2, 					//结束点横坐标
+					int y2, 					//结束点纵坐标
+					int L);						//箭头大小
+	bool 		 IS_VOID(int g, int x, int y);	//判断是否为空(为空返回0)
+	bool 		 IS_DEAD(int p);				//判断玩家是否死亡(死亡返回1)
+	bool 		 NORMAL_GO(Chess A, Chess B);	//普通移动(能够到达返回1)
 	int 		 N_KILL(Chess A, Chess B);		//判断大小，返回谁死亡
 	void 		 Go_Super();					//超级模式初始化
 	static void	 Game_Initialize();				//游戏初始化
@@ -111,9 +117,12 @@ class _2 : Pub
 		_2divx = 115, 
 		_2divy = 51;						//绘图相关棋盘参数
 	int  trans[3] = { 0,1,-1 };				//转换坐标
-	bool ROAD_GO_N(Pos F, Pos T);			//常规铁道移动
-	bool ROAD_GO_B(Pos F, Pos T);			//工兵铁道移动
-	bool GOABLE(Chess A, Chess B, bool att);//判断是否可移动
+	bool ROAD_GO_N(Pos F, Pos T);			//常规铁道移动(能够到达返回1)
+	bool ROAD_GO_B(Pos F, Pos T);			//工兵铁道移动(能够到达返回1)
+	bool GOABLE(							//判断是否可移动(能够到达返回1)
+		Chess A, 
+		Chess B, 
+		bool att);							//(AB为两个棋子,att==1则为攻击)
 public:
 	void PRINTNOW();						//打印当前棋盘及附加图像
 	void MC();								//主函数
@@ -136,10 +145,13 @@ class _4 : Pub
 		transxy[5] = { 0,1,0,-1,0 }, 
 		transyx[5] = { 0,1,0,-1,0 }, 
 		transyy[5] = { 0,0,-1,0,1 };		//转换坐标
-	bool TEAM_WIN();						//判断队伍胜利
-	bool ROAD_GO_N(Pos F, Pos T);			//常规铁道移动
-	bool ROAD_GO_B(Pos F, Pos T);			//工兵铁道移动
-	bool GOABLE(Chess A, Chess B, bool att);//判断是否可移动
+	bool TEAM_WIN();						//判断队伍胜利(队伍胜利返回1)
+	bool ROAD_GO_N(Pos F, Pos T);			//常规铁道移动(能够到达返回1)
+	bool ROAD_GO_B(Pos F, Pos T);			//工兵铁道移动(能够到达返回1)
+	bool GOABLE(							//判断是否可移动(能够到达返回1)
+		Chess A, 
+		Chess B, 
+		bool att);							//(AB为两个棋子,att==1则为攻击)
 public:
 	void GO_NEXT();							//轮换下一步
 	void PRINTNOW();						//打印当前棋盘及附加图像
@@ -148,24 +160,27 @@ public:
 ```
 ### 其他独立函数
 ```cpp
-static void putnewbk(IMAGE* dstimg, 
+static void putnewbk(			//透明图片(抄来的)
+	IMAGE* dstimg, 
 	int x, 
 	int y, 
-	IMAGE* srcimg);				//透明图片
-static bool IS_MSG(ExMessage msg, 
-	int spx, 
-	int spy, 
-	int lx, 
-	int ly);					//判断鼠标点击是否在目标位置内
-static void button(int x, 
-	int y, 
-	int w, 
-	int h, 
-	const char* text, 
-	COLORREF col, 
-	int size = 20);				//绘制带有文字和颜色的框
+	IMAGE* srcimg);				
+static bool IS_MSG(				//判断鼠标点击是否在目标位置内(是则返回1)
+	ExMessage msg, 
+	int spx, 					//起始点横坐标
+	int spy, 					//起始点纵坐标
+	int lx, 					//宽度
+	int ly);					//厚度
+static void button(				//绘制带有文字和颜色的框
+	int x, 						//起始点横坐标
+	int y, 	 					//起始点纵坐标
+	int w, 	 					//宽度
+	int h, 						//厚度
+	const char* text, 			//文字内容
+	COLORREF col, 				//背景颜色
+	int size = 20);				//文字大小
 static void Start_Play();		//背景音乐播放函数
-static void MyExec(string cmd);	//隐藏黑框执行命令行
+static void MyExec(string cmd);	//隐藏黑框执行命令行(cmd为命令)
 void 		Setting();			//设置
 void 		HISTORY();			//复盘函数
 bool 		Update();			//更新函数
